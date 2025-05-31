@@ -1,67 +1,94 @@
-use leptos::task::spawn_local;
-use leptos::{ev::SubmitEvent, prelude::*};
-use serde::{Deserialize, Serialize};
-use wasm_bindgen::prelude::*;
+use leptos::{prelude::*, tachys::view};
+use rand::prelude::*;
 
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
-    async fn invoke(cmd: &str, args: JsValue) -> JsValue;
-}
-
-#[derive(Serialize, Deserialize)]
-struct GreetArgs<'a> {
-    name: &'a str,
+#[derive(Clone, Debug)]
+pub struct Color{
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
 }
 
 #[component]
 pub fn App() -> impl IntoView {
-    let (name, set_name) = signal(String::new());
-    let (greet_msg, set_greet_msg) = signal(String::new());
-
-    let update_name = move |ev| {
-        let v = event_target_value(&ev);
-        set_name.set(v);
-    };
-
-    let greet = move |ev: SubmitEvent| {
-        ev.prevent_default();
-        spawn_local(async move {
-            let name = name.get_untracked();
-            if name.is_empty() {
-                return;
-            }
-
-            let args = serde_wasm_bindgen::to_value(&GreetArgs { name: &name }).unwrap();
-            // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-            let new_msg = invoke("greet", args).await.as_string().unwrap();
-            set_greet_msg.set(new_msg);
-        });
-    };
-
+    // Reactive signals for rows and columns
+    let (rows, set_rows) = signal::<usize>(10);
+    let (cols, set_cols) = signal::<usize>(10);
+    fn create_new_grid(rows: usize, cols: usize)-> Vec<Vec<Color>>{
+        let mut rng = rand::rng();
+        (0..rows)
+            .map(|_| {
+                (0..cols)
+                    .map(|_| Color {
+                        r: rng.random_range(0..=255),
+                        g: rng.random_range(0..=255),
+                        b: rng.random_range(0..=255),
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+    let (grid, set_grid) = signal::<Vec<Vec<Color>>>(create_new_grid(rows.get(), cols.get()));
+    
     view! {
-        <main class="container">
-            <h1>"Welcome to Tauri + Leptos"</h1>
-
-            <div class="row">
-                <a href="https://tauri.app" target="_blank">
-                    <img src="public/tauri.svg" class="logo tauri" alt="Tauri logo"/>
-                </a>
-                <a href="https://docs.rs/leptos/" target="_blank">
-                    <img src="public/leptos.svg" class="logo leptos" alt="Leptos logo"/>
-                </a>
-            </div>
-            <p>"Click on the Tauri and Leptos logos to learn more."</p>
-
-            <form class="row" on:submit=greet>
+        <div style="padding: 1rem;">
+            <div style="margin-bottom: 1rem;">
+                <label>"Rows: "</label>
                 <input
-                    id="greet-input"
-                    placeholder="Enter a name..."
-                    on:input=update_name
+                    type="number"
+                    min="1"
+                    prop:value=rows
+                    on:input=move |ev| {
+                        if let Ok(val) = event_target_value(&ev).parse::<usize>() {
+                            set_rows.set(val);
+                            set_grid.set(create_new_grid(val, cols.get()));
+                        }
+                    }
                 />
-                <button type="submit">"Greet"</button>
-            </form>
-            <p>{ move || greet_msg.get() }</p>
-        </main>
+                <label style="margin-left: 1rem;">"Cols: "</label>
+                <input
+                    type="number"
+                    min="1"
+                    prop:value=cols
+                    on:input=move |ev| {
+                        if let Ok(val) = event_target_value(&ev).parse::<usize>() {
+                            set_cols.set(val);
+                            set_grid.set(create_new_grid(rows.get(), val));
+                        }
+                    }
+                />
+            </div>
+
+            <div style="
+            width: 600px;
+            height: 400px;
+            overflow: scroll;
+            border: 1px solid #ccc;
+            ">
+            <div style="width: fit-content; height: fit-content;">
+                {move ||{grid
+                    .get()
+                    .iter()
+                    .map(|row| {
+                        view! {
+                            <div style="display: flex; flex-direction: row;">
+                                {row.iter()
+                                    .map(|Color { r, g, b }| {
+                                        let color_str = format!("rgb({},{},{})", r, g, b);
+                                        view! {
+                                            <div style=format!(
+                                                "width: 40px; height: 40px; background-color: {}; display: inline",
+                                                color_str,
+                                            )></div>
+                                        }
+                                    })
+                                    .collect::<Vec<_>>()}
+                            </div>
+                        }                        
+                    })
+                    .collect::<Vec<_>>()}
+                }
+                </div>
+            </div>
+        </div>
     }
 }

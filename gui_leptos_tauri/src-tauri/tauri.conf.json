@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "gui_leptos_tauri",
+        "title": "PCB Router Pro Max",
         "width": 800,
         "height": 600
       }
