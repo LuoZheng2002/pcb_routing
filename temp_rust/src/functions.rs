@@ -70,6 +70,8 @@ pub fn naive_route(unrouted_grid: Grid) -> Grid {
                     pairs.push((OrderedFloat(distance), net.clone(), point1, point2));
                 }
             }
+            // to do: prim's algorithm to find the minimum spanning tree
+            // let pairs = prims_algorithm(points_vec, pairs: HashMap<(Point, Point), f32>);
             pairs
         })
         .collect();
