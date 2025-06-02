@@ -31,5 +31,14 @@ def main():
     routed = naive_route(grid)
     print_grid(routed)
 
+    pad_sets = [
+        (Net('A', 'a'), [Point(3, 3), Point(9, 3), Point(5, 1), Point(7, 5), Point(7, 1)])
+        # Point(5, 5)
+    ]
+    grid = create_grid(pad_sets)
+    print_grid(grid)
+    routed = naive_route(grid)
+    print_grid(routed)
+
 if __name__ == '__main__':
     main()

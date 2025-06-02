@@ -43,11 +43,12 @@ class DijkstraResult:
 
 @dataclass
 class DijkstraModel:
+    net: Net
     width: int
     height: int
     obstacles: Set[Point]
     # diagonal_obstacles: Set[Point]
-    pending_net: Set[Point]
+    pending_net: Dict[Net, Set[Point]]
     start: Point
     end: Point
 
@@ -65,7 +66,10 @@ class DijkstraModel:
 
         cardinal_dirs = [(0, -1), (0, 1), (-1, 0), (1, 0)]
         diagonal_dirs = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
-        self.obstacles = self.obstacles | self.pending_net
+        for key, points in self.pending_net.items():
+            if key != self.net:
+                self.obstacles.update(points)
+
         # print(self.obstacles)
         while heap:
             state = heapq.heappop(heap)
@@ -106,13 +110,15 @@ class DijkstraModel:
             if current not in prev:
                 return DijkstraResult(self.start, [], float('inf'))
             prev_point = prev[current]
-            if prev_point not in self.pending_net:
-                self.pending_net.add(prev_point)
+            if prev_point != self.start and prev_point != self.end:
+                if self.net not in self.pending_net.keys():
+                    self.pending_net[self.net] ={prev_point}
+                elif prev_point not in self.pending_net[self.net]:
+                    self.pending_net[self.net].add(prev_point)
             directions.append(Direction(current.x - prev_point.x, current.y - prev_point.y))
             current = prev_point
 
         directions.reverse()
-        # print(self.pending_net)
         return DijkstraResult(self.start, directions, dist.get(self.end, float('inf')))
 
     def offset_point(self, point: Point, dx: int, dy: int) -> Optional[Point]:
