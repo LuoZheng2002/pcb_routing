@@ -46,7 +46,8 @@ class DijkstraModel:
     width: int
     height: int
     obstacles: Set[Point]
-    diagonal_obstacles: Set[Point]
+    # diagonal_obstacles: Set[Point]
+    pending_net: Set[Point]
     start: Point
     end: Point
 
@@ -64,7 +65,8 @@ class DijkstraModel:
 
         cardinal_dirs = [(0, -1), (0, 1), (-1, 0), (1, 0)]
         diagonal_dirs = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
-
+        self.obstacles = self.obstacles | self.pending_net
+        # print(self.obstacles)
         while heap:
             state = heapq.heappop(heap)
             cost, position = state.cost, state.position
@@ -87,9 +89,11 @@ class DijkstraModel:
             for dx, dy in diagonal_dirs:
                 next_point = self.offset_point(position, dx, dy)
                 if next_point:
-                    top_left = self.offset_point(position, min(dx, 0), min(dy, 0))
-                    if (next_point not in self.obstacles and
-                        top_left and top_left not in self.diagonal_obstacles):
+                    # top_left = self.offset_point(position, min(dx, 0), min(dy, 0))
+                    if (next_point not in self.obstacles and 
+                        (Point(position.x, next_point.y) not in self.obstacles or
+                        Point(next_point.x, position.y) not in self.obstacles
+                    )):
                         new_cost = cost + math.sqrt(2)
                         if new_cost < dist.get(next_point, float('inf')):
                             dist[next_point] = new_cost
@@ -102,10 +106,13 @@ class DijkstraModel:
             if current not in prev:
                 return DijkstraResult(self.start, [], float('inf'))
             prev_point = prev[current]
+            if prev_point not in self.pending_net:
+                self.pending_net.add(prev_point)
             directions.append(Direction(current.x - prev_point.x, current.y - prev_point.y))
             current = prev_point
 
         directions.reverse()
+        # print(self.pending_net)
         return DijkstraResult(self.start, directions, dist.get(self.end, float('inf')))
 
     def offset_point(self, point: Point, dx: int, dy: int) -> Optional[Point]:

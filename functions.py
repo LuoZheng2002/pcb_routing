@@ -29,23 +29,25 @@ def print_grid(grid: Grid) -> None:
 
 def naive_route(unrouted_grid: Grid) -> Grid:
 
-    def prepare_model(net: Net, start: Point, end: Point) -> DijkstraModel:
+    def prepare_model(net: Net, start: Point, end: Point, pending_net:Set[Point]) -> DijkstraModel:
         return DijkstraModel(
             width=unrouted_grid.width,
             height=unrouted_grid.height,
             obstacles=unrouted_grid.pads_except(net),
-            diagonal_obstacles=set(),
+            # diagonal_obstacles=set(),
+            pending_net = pending_net,
             start=start,
             end=end,
         )
 
     pad_pairs = []
+    pending_net = set()
     for net, points in unrouted_grid.pads.items():
         points_list = list(points)
         for i in range(len(points_list)):
             for j in range(i + 1, len(points_list)):
                 start, end = points_list[i], points_list[j]
-                model = prepare_model(net, start, end)
+                model = prepare_model(net, start, end, pending_net)
                 result = model.run()
                 pad_pairs.append((result.distance, net, start, end, result))
 
