@@ -35,11 +35,11 @@ impl PointPair{
 }
 
 
-#[derive(Debug, Clone, PartialEq, Hash, Eq)]
-pub struct Pad{
-    pub net: Net,
-    pub point: Point,
-}
+// #[derive(Debug, Clone, PartialEq, Hash, Eq)]
+// pub struct Pad{
+//     pub net: Net,
+//     pub point: Point,
+// }
 
 #[derive(Debug, Clone)]
 pub struct Grid{
@@ -93,7 +93,7 @@ impl Grid{
         grid_string
     }
 
-fn build_grid_string(char_matrix: &Vec<Vec<char>>) -> String {
+    fn build_grid_string(char_matrix: &Vec<Vec<char>>) -> String {
         let width = char_matrix[0].len();
         let horizontal_wall = "#".repeat(width + 2);
         let mut result = String::new();

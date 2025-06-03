@@ -3,49 +3,12 @@ from typing import Dict, Set, List, Tuple, Optional
 import heapq
 import math
 
-@dataclass(frozen=True)
-class Net:
-    pad_c: str
-    route_c: str
-
-@dataclass(frozen=True, order=True)
-class Point:
-    x: int
-    y: int
+from grid import Net, Point
 
 @dataclass
 class Direction:
     x: int
     y: int
-
-@dataclass
-class Grid:
-    pads: Dict[Net, Set[Point]]
-    traces: Dict[Net, Set[Point]]
-    diagonal_traces: Dict[Net, Set[Point]]
-    width: int
-    height: int
-
-    def pads_except(self, net: Net) -> Set[Point]:
-        return {p for n, ps in self.pads.items() if n != net for p in ps}
-
-    def routes_except(self, net: Net) -> Set[Point]:
-        return {p for n, ps in self.traces.items() if n != net for p in ps}
-
-    def diagonal_routes_except(self, net: Net) -> Set[Point]:
-        return {p for n, ps in self.diagonal_traces.items() if n != net for p in ps}
-
-@dataclass
-class Color:
-    r: int
-    g: int
-    b: int
-
-@dataclass
-class ColorGrid:
-    grid: List[List[Color]]
-
-
 
 @dataclass
 class DijkstraResult:
