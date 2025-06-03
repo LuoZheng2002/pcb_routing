@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq, PartialOrd, Ord)]
 pub struct Net{
@@ -20,7 +20,7 @@ pub struct Pad{
 
 #[derive(Debug, Clone)]
 pub struct Grid{
-    pub pads: HashMap<Net, HashSet<Point>>,
+    pub pads: HashMap<Net, BTreeSet<Point>>,
     pub traces: HashMap<Net, HashSet<Point>>,
     pub diagonal_traces: HashMap<Net, HashSet<Point>>, // the point is at the top left corner of the diagonal trace
     pub width: u32,
@@ -49,7 +49,7 @@ impl Grid{
             .cloned()
             .collect()
     }
-    fn to_string(&self) -> Vec<Vec<char>>{
+    fn to_char_matrix(&self) -> Vec<Vec<char>>{
         let width = self.width;
         let height = self.height;
         let mut grid_string: Vec<Vec<char>> = vec![vec![' '; width as usize]; height as usize];
@@ -70,18 +70,34 @@ impl Grid{
         grid_string
     }
 
-    fn print_grid_string(grid_string: &Vec<Vec<char>>) {
-        let width = grid_string[0].len();
+fn build_grid_string(char_matrix: &Vec<Vec<char>>) -> String {
+        let width = char_matrix[0].len();
         let horizontal_wall = "#".repeat(width + 2);
-        println!("{}", horizontal_wall);
-        for row in grid_string {
-            println!("#{}#", row.iter().collect::<String>());
+        let mut result = String::new();
+
+        result.push_str(&horizontal_wall);
+        result.push('\n');
+
+        for row in char_matrix {
+            result.push('#');
+            result.push_str(&row.iter().collect::<String>());
+            result.push('#');
+            result.push('\n');
         }
-        println!("{}", horizontal_wall);
+
+        result.push_str(&horizontal_wall);
+        result.push('\n');
+
+        result
     }
     pub fn print(&self) {
-        let grid_string = self.to_string();
-        Self::print_grid_string(&grid_string);
+        let char_matrix = self.to_char_matrix();
+        let result = Self::build_grid_string(&char_matrix);
+        println!("{}", result);
+    }
+    pub fn to_string(&self) -> String {
+        let char_matrix = self.to_char_matrix();
+        Self::build_grid_string(&char_matrix)
     }
 }
 

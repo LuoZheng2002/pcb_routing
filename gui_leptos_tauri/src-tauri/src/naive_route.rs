@@ -62,6 +62,7 @@ pub fn naive_route(unrouted_grid: Grid) -> Grid {
     }
     let mut grid = unrouted_grid.clone();
     while let Some(Reverse((OrderedFloat(_distance), net, start, end))) = priority_queue.pop() {
+        println!("Routing net: {:?}, from {:?} to {:?}", net, start, end);
         // construct dijkstra model for the current pair of pads
         let dijkstra_model = prepare_dijkstra_model(&grid, &net, start, end);
         // run dijkstra's algorithm
