@@ -1,5 +1,5 @@
 [package]
-name = "pcb_routing_rust"
+name = "shared"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,3 +7,4 @@ edition = "2024"
 image = "0.25.6"
 lazy_static = "1.5.0"
 ordered-float = "5.0.0"
+serde = "1.0.219"

@@ -1,7 +1,21 @@
 use std::{cmp::Ordering, collections::{BinaryHeap, HashMap, HashSet}};
 
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Hash, Eq, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct LogArgs {
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum MyResult<T, E> {
+    Ok(T),
+    Err(E),
+}
+
+
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash, Eq, PartialOrd, Ord)]
 pub struct Net{
     pub pad_c: char,
     pub route_c: char,
@@ -12,7 +26,7 @@ pub struct Pad{
     pub point: Point,
 }
 
-#[derive(Debug, Clone, PartialEq, Hash, Eq, Copy, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash, Eq, Copy, PartialOrd, Ord)]
 pub struct Point {
     pub x: u32,
     pub y: u32,
@@ -23,7 +37,7 @@ pub struct Direction {
     pub y: i32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Grid{
     pub pads: HashMap<Net, HashSet<Point>>,
     pub traces: HashMap<Net, HashSet<Point>>,
@@ -31,6 +45,12 @@ pub struct Grid{
     pub width: u32,
     pub height: u32,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Color(pub u8, pub u8, pub u8);
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ColorGrid(pub Vec<Vec<Color>>);
 
 impl Grid{
     pub fn pads_except(&self, net: &Net) -> HashSet<Point> {
