@@ -36,6 +36,18 @@ class Grid:
         return {p for n, ps in self.diagonal_traces.items() if n != net for p in ps}
 
 @dataclass
+class Color:
+    r: int
+    g: int
+    b: int
+
+@dataclass
+class ColorGrid:
+    grid: List[List[Color]]
+
+
+
+@dataclass
 class DijkstraResult:
     start: Point
     directions: List[Direction]

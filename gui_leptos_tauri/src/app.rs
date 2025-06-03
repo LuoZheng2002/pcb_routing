@@ -1,7 +1,7 @@
 use leptos::{prelude::*, tachys::view, task::spawn_local};
 use rand::prelude::*;
 use serde_wasm_bindgen::{from_value, to_value};
-use shared::datatypes::{Color, ColorGrid, Grid, MyResult};
+use shared::interface_types::{Color, ColorGrid, MyResult};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -36,15 +36,15 @@ pub fn App() -> impl IntoView {
         let color_grid = (0..rows)
             .map(|_| {
                 (0..cols)
-                    .map(|_| Color (
-                        rng.random_range(0..=255),
-                        rng.random_range(0..=255),
-                        rng.random_range(0..=255),
-                    ))
-                    .collect()
+                    .map(|_| Color {
+                        r: rng.random_range(0..=255),
+                        g: rng.random_range(0..=255),
+                        b: rng.random_range(0..=255),
+                })
+                .collect()
             })
             .collect();
-        ColorGrid(color_grid)
+        ColorGrid{grid: color_grid}
     }
     let (grid, set_grid) = signal::<ColorGrid>(create_new_grid(rows.get(), cols.get()));
     
@@ -106,13 +106,13 @@ pub fn App() -> impl IntoView {
             <div style="width: fit-content; height: fit-content;">
                 {move ||{grid
                     .get()
-                    .0
+                    .grid
                     .iter()
                     .map(|row| {
                         view! {
                             <div style="display: flex; flex-direction: row;">
                                 {row.iter()
-                                    .map(|Color(r, g, b)| {
+                                    .map(|Color{r, g, b}| {
                                         let color_str = format!("rgb({},{},{})", r, g, b);
                                         view! {
                                             <div style=format!(

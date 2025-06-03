@@ -1,6 +1,11 @@
 use std::{net::TcpStream, sync::Mutex};
 
 pub mod commands;
+pub mod dijkstra;
+pub mod grid;
+pub mod naive_route;
+
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use lazy_static::lazy_static;
 

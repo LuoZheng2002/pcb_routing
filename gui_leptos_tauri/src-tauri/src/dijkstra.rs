@@ -1,79 +1,12 @@
 use std::{cmp::Ordering, collections::{BinaryHeap, HashMap, HashSet}};
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct LogArgs {
-    pub message: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum MyResult<T, E> {
-    Ok(T),
-    Err(E),
-}
+use crate::grid::Point;
 
 
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash, Eq, PartialOrd, Ord)]
-pub struct Net{
-    pub pad_c: char,
-    pub route_c: char,
-}
-#[derive(Debug, Clone, PartialEq, Hash, Eq)]
-pub struct Pad{
-    pub net: Net,
-    pub point: Point,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash, Eq, Copy, PartialOrd, Ord)]
-pub struct Point {
-    pub x: u32,
-    pub y: u32,
-}
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Direction {
     pub x: i32,
     pub y: i32,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Grid{
-    pub pads: HashMap<Net, HashSet<Point>>,
-    pub traces: HashMap<Net, HashSet<Point>>,
-    pub diagonal_traces: HashMap<Net, HashSet<Point>>, // the point is at the top left corner of the diagonal trace
-    pub width: u32,
-    pub height: u32,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Color(pub u8, pub u8, pub u8);
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ColorGrid(pub Vec<Vec<Color>>);
-
-impl Grid{
-    pub fn pads_except(&self, net: &Net) -> HashSet<Point> {
-        self.pads.iter()
-            .filter(|(n, _)| **n != *net)
-            .flat_map(|(_, points)| points.iter())
-            .cloned()
-            .collect()
-    }
-    pub fn routes_except(&self, net: &Net) -> HashSet<Point> {
-        self.traces.iter()
-            .filter(|(n, _)| **n != *net)
-            .flat_map(|(_, points)| points.iter())
-            .cloned()
-            .collect()
-    }
-    pub fn diagonal_routes_except(&self, net: &Net) -> HashSet<Point> {
-        self.diagonal_traces.iter()
-            .filter(|(n, _)| **n != *net)
-            .flat_map(|(_, points)| points.iter())
-            .cloned()
-            .collect()
-    }
 }
 
 pub struct DijkstraModel{

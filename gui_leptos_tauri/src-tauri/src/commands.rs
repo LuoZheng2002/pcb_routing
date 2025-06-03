@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 
-use shared::datatypes::{Color, ColorGrid, MyResult};
+use shared::interface_types::{Color, ColorGrid, MyResult};
 
 use crate::TCP_STREAM;
 

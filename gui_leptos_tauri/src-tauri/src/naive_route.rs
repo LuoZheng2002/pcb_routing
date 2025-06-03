@@ -1,47 +1,13 @@
-use std::{cmp::Reverse, collections::{BinaryHeap, HashSet}};
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
+use std::collections::HashSet;
 
-use image::{ImageBuffer, Pixel, Rgba};
+
+use crate::grid::*;
+use crate::dijkstra::*;
 use ordered_float::OrderedFloat;
 
-use crate::datatypes::{DijkstraModel, DijkstraResult, Grid, Net, Pad, Point};
 
-
-
-pub fn grid_to_string(grid: &Grid) -> Vec<Vec<char>>{
-    let width = grid.width;
-    let height = grid.height;
-    let mut grid_string: Vec<Vec<char>> = vec![vec![' '; width as usize]; height as usize];
-    for (net, points) in &grid.pads {
-        let net_char = net.pad_c;
-        for point in points {
-            assert!(point.x < width && point.y < height, "Point out of bounds");
-            grid_string[point.y as usize][point.x as usize] = net_char;
-        }
-    }
-    for (net, points) in &grid.traces {
-        let route_char = net.route_c;
-        for point in points {
-            assert!(point.x < width && point.y < height, "Point out of bounds");
-            grid_string[point.y as usize][point.x as usize] = route_char;
-        }
-    }
-    grid_string
-}
-
-pub fn print_grid_string(grid_string: &Vec<Vec<char>>) {
-    let width = grid_string[0].len();
-    let horizontal_wall = "#".repeat(width + 2);
-    println!("{}", horizontal_wall);
-    for row in grid_string {
-        println!("#{}#", row.iter().collect::<String>());
-    }
-    println!("{}", horizontal_wall);
-}
-
-pub fn print_grid(grid: &Grid) {
-    let grid_string = grid_to_string(grid);
-    print_grid_string(&grid_string);
-}
 
 pub fn naive_route(unrouted_grid: Grid) -> Grid { 
     let prepare_dijkstra_model_unrouted = |net: Net, start: Point, end: Point|{
