@@ -4,6 +4,7 @@ pub mod commands;
 pub mod dijkstra;
 pub mod grid;
 pub mod naive_route;
+pub mod prim_mst;
 
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/

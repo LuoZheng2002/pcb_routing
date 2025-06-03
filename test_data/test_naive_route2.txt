@@ -5,18 +5,18 @@ input:
 #            #
 #   A     A  #
 #            #
-#     B C    #
+#     C B    #
 #            #
 #            #
 ##############
 output:
 ##############
+#     cc     #
+#    cb c    #
+#    cb      #
+#   acb   a  #
+#   a cb a   #
+#    ac ba   #
 #     aaa    #
-#    ab ca   #
-#   a b ca   #
-#   a b c a  #
-#     b c    #
-#     b c    #
-#            #
 #            #
 ##############

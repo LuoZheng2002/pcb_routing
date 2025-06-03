@@ -5,6 +5,7 @@ use std::collections::HashSet;
 
 use crate::grid::*;
 use crate::dijkstra::*;
+use crate::prim_mst::prim_mst;
 use ordered_float::OrderedFloat;
 
 
@@ -22,7 +23,7 @@ pub fn naive_route(unrouted_grid: Grid) -> Grid {
         }
     };
     // prepare all the pairs of pads to route
-    let pad_pairs: Vec<(OrderedFloat<f32>, Net, Point, Point)> = unrouted_grid.pads.iter()
+    let pad_pairs: Vec<(OrderedFloat<f32>, Net, PointPair)> = unrouted_grid.pads.iter()
         .flat_map(|(net, points)| {
             // permutate all pairs and calculate their distance using Dijkstra's algorithm
             let mut pairs = vec![];
@@ -33,11 +34,12 @@ pub fn naive_route(unrouted_grid: Grid) -> Grid {
                     let point2 = points_vec[j];
                     let dijkstra_model = prepare_dijkstra_model_unrouted(net.clone(), point1, point2);
                     let DijkstraResult{distance, ..} = dijkstra_model.run();
-                    pairs.push((OrderedFloat(distance), net.clone(), point1, point2));
+                    pairs.push((OrderedFloat(distance), net.clone(), PointPair::new(point1, point2)));
                 }
             }
-            // to do: prim's algorithm to find the minimum spanning tree
-            // let pairs = prims_algorithm(points_vec, pairs: HashMap<(Point, Point), f32>);
+
+            // prim's algorithm
+            let pairs = prim_mst(pairs);
             pairs
         })
         .collect();
@@ -61,14 +63,14 @@ pub fn naive_route(unrouted_grid: Grid) -> Grid {
         }
     }
     let mut grid = unrouted_grid.clone();
-    while let Some(Reverse((OrderedFloat(_distance), net, start, end))) = priority_queue.pop() {
-        println!("Routing net: {:?}, from {:?} to {:?}", net, start, end);
+    while let Some(Reverse((OrderedFloat(_distance), net, point_pair))) = priority_queue.pop() {
+        println!("Routing net: {:?}, from {:?} to {:?}", net, point_pair.start(), point_pair.end());
         // construct dijkstra model for the current pair of pads
-        let dijkstra_model = prepare_dijkstra_model(&grid, &net, start, end);
+        let dijkstra_model = prepare_dijkstra_model(&grid, &net, point_pair.start(), point_pair.end());
         // run dijkstra's algorithm
         let DijkstraResult { start: _, directions, distance: _ } = dijkstra_model.run();
         // add the route to the grid
-        let mut current_point = start;
+        let mut current_point = point_pair.start();
         grid.traces.entry(net.clone()).or_default().insert(current_point);
         for direction in directions {
             let last_point = current_point;
