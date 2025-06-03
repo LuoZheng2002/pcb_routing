@@ -65,6 +65,7 @@ class Grid:
 
         for net, points in self.traces.items():
             for point in points:
+                # print(self.width, self.height, point)
                 assert 0 <= point.x < self.width and 0 <= point.y < self.height, "Point out of bounds"
                 grid_string[point.y][point.x] = net.route_c
 

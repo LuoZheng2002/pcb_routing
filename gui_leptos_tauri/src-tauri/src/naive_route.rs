@@ -10,7 +10,9 @@ use ordered_float::OrderedFloat;
 
 
 
-pub fn naive_route(unrouted_grid: Grid) -> Grid { 
+pub fn naive_route(mut unrouted_grid: Grid) -> Result<Grid, String> {
+    unrouted_grid.traces.clear();
+    unrouted_grid.diagonal_traces.clear();
     let prepare_dijkstra_model_unrouted = |net: Net, start: Point, end: Point|{
         let other_pads = unrouted_grid.pads_except(&net);
         DijkstraModel {
@@ -33,7 +35,11 @@ pub fn naive_route(unrouted_grid: Grid) -> Grid {
                     let point1 = points_vec[i];
                     let point2 = points_vec[j];
                     let dijkstra_model = prepare_dijkstra_model_unrouted(net.clone(), point1, point2);
-                    let DijkstraResult{distance, ..} = dijkstra_model.run();
+                    let DijkstraResult{distance, ..} = dijkstra_model.run().unwrap_or(DijkstraResult{
+                        start: point1,
+                        directions: vec![],
+                        distance: f32::INFINITY,
+                    });
                     pairs.push((OrderedFloat(distance), net.clone(), PointPair::new(point1, point2)));
                 }
             }
@@ -68,15 +74,15 @@ pub fn naive_route(unrouted_grid: Grid) -> Grid {
         // construct dijkstra model for the current pair of pads
         let dijkstra_model = prepare_dijkstra_model(&grid, &net, point_pair.start(), point_pair.end());
         // run dijkstra's algorithm
-        let DijkstraResult { start: _, directions, distance: _ } = dijkstra_model.run();
+        let DijkstraResult { start: _, directions, distance: _ } = dijkstra_model.run()?;
         // add the route to the grid
         let mut current_point = point_pair.start();
         grid.traces.entry(net.clone()).or_default().insert(current_point);
         for direction in directions {
             let last_point = current_point;
             current_point = Point {
-                x: (current_point.x as i32 + direction.x) as u32,
-                y: (current_point.y as i32 + direction.y) as u32,
+                x: (current_point.x as i32 + direction.x) as usize,
+                y: (current_point.y as i32 + direction.y) as usize,
             };
             assert!(current_point.x < grid.width && current_point.y < grid.height, "Point out of bounds");
             grid.traces.get_mut(&net).unwrap().insert(current_point);
@@ -91,5 +97,5 @@ pub fn naive_route(unrouted_grid: Grid) -> Grid {
         }
     }
     assert!(priority_queue.is_empty());
-    grid
+    Ok(grid)
 }

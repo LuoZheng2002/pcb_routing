@@ -10,8 +10,8 @@ pub struct Direction {
 }
 
 pub struct DijkstraModel{
-    pub width: u32,
-    pub height: u32,
+    pub width: usize,
+    pub height: usize,
     pub obstacles: HashSet<Point>,
     pub diagonal_obstacles: HashSet<Point>, // obstacles that are diagonal traces
     pub start: Point,
@@ -19,7 +19,7 @@ pub struct DijkstraModel{
 }
 
 impl DijkstraModel {
-    pub fn run(&self) -> DijkstraResult {
+    pub fn run(&self) -> Result<DijkstraResult, String> {
         let mut heap = BinaryHeap::new();
         let mut dist: HashMap<Point, f32> = HashMap::new();
         let mut prev: HashMap<Point, Point> = HashMap::new();
@@ -104,26 +104,22 @@ impl DijkstraModel {
                 current = prev_point;
             } else {
                 // No path found
-                return DijkstraResult {
-                    start: self.start,
-                    directions: vec![],
-                    distance: f32::INFINITY,
-                };
+                return Err("Dijkstra Algorithm Failed: No Path Found".to_string());
             }
         }
         path.reverse();
-        DijkstraResult {
+        Ok(DijkstraResult {
             start: self.start,
             directions: path,
             distance: *dist.get(&self.end).unwrap_or(&f32::INFINITY),
-        }
+        })
     }
 
     fn offset_point(&self, point: Point, dx: i32, dy: i32) -> Option<Point> {
         let nx = point.x as i32 + dx;
         let ny = point.y as i32 + dy;
-        if nx >= 0 && ny >= 0 && (nx as u32) < self.width && (ny as u32) < self.height {
-            Some(Point { x: nx as u32, y: ny as u32 })
+        if nx >= 0 && ny >= 0 && (nx as usize) < self.width && (ny as usize) < self.height {
+            Some(Point { x: nx as usize, y: ny as usize })
         } else {
             None
         }

@@ -5,12 +5,13 @@ pub mod dijkstra;
 pub mod grid;
 pub mod naive_route;
 pub mod prim_mst;
+pub mod tauri_state;
 
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use lazy_static::lazy_static;
 
-use crate::commands::fetch_grid;
+use crate::commands::{click_cell, do_naive_route, new_grid};
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -22,7 +23,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            fetch_grid,
+            new_grid,
+            click_cell,
+            do_naive_route,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

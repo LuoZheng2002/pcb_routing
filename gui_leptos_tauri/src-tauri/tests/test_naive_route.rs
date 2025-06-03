@@ -24,7 +24,7 @@ fn test_naive_route() {
         let input = input_and_output[0].trim();
         let expected_output = input_and_output[1].trim();
         let grid = Grid::from_string(input);
-        let routed_grid = naive_route(grid);
+        let routed_grid = naive_route(grid).unwrap();
         let output = routed_grid.to_string();
         let output = output.trim();
         assert_eq!(output, expected_output, "Output does not match expected. Output:\n{}", output);        

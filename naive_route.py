@@ -6,7 +6,7 @@ from ordered_set import OrderedSet  # optional if order matters
 import heapq
 
 from dijkstra import DijkstraModel
-from grid import Grid, Net, Point
+from grid import Grid, Net, Point, PointPair
 from prim_mst import prim_mst
 
 
@@ -34,18 +34,20 @@ def naive_route(unrouted_grid: Grid) -> Grid:
         for i in range(len(points_list)):
             for j in range(i + 1, len(points_list)):
                 start, end = points_list[i], points_list[j]
-                model = prepare_model(net, start, end, pending_net)
+                point_pair = PointPair.new(start, end)
+                model = prepare_model(net, point_pair.start, point_pair.end, pending_net)
                 result = model.run()
-                pad_pairs_tmp.append((result.distance, net, start, end, result))
+                pad_pairs_tmp.append((result.distance, net, point_pair, result))
         pad_pairs_tmp = prim_mst(pad_pairs_tmp)
         pad_pairs.extend(pad_pairs_tmp)
 
 
     pad_pairs = sorted(pad_pairs, key=lambda x: x[0])
+    # print("pad_pairs", pad_pairs)
     new_traces = dict(unrouted_grid.traces)
 
-    for _, net, start, _, result in pad_pairs:
-        pos = start
+    for _, net, point_pair, result in pad_pairs:
+        pos = point_pair.start
         if(net in new_traces.keys()):
             trace =  new_traces[net] | {pos}
         else:

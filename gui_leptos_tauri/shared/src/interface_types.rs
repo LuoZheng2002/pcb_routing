@@ -14,7 +14,7 @@ pub enum MyResult<T, E> {
 }
 
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Color{
     pub r: u8,
     pub g: u8,
@@ -24,4 +24,19 @@ pub struct Color{
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ColorGrid{
     pub grid: Vec<Vec<Color>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct NewGridArgs{
+    pub rows: usize,
+    pub cols: usize,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ClickCellArgs{
+    pub x: usize,
+    pub y: usize,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
 }
