@@ -4,16 +4,18 @@ from grid import Grid
 from naive_route import naive_route
 
 def test_naive_route():
-    test_files = [
-        "test_data/test_naive_route1.txt",
-        "test_data/test_naive_route2.txt",
-        "test_data/test_naive_route3.txt",
-        "test_data/test_naive_route4.txt",
-    ]
-
+    # test_files = [
+    #     "test_data/test_naive_route1.txt",
+    #     "test_data/test_naive_route2.txt",
+    #     "test_data/test_naive_route3.txt",
+    #     "test_data/test_naive_route4.txt",
+    # ]
+    folder_path = './test_data'  # 替换为你的文件夹路径
+    test_files = os.listdir(folder_path)
+    
     for test_file in test_files:
         print("testing", test_file)
-        with open(test_file, 'r', encoding='utf-8') as f:
+        with open(f"test_data/{test_file}", 'r', encoding='utf-8') as f:
             content = f.read()
 
         content = content.replace("\r\n", "\n")  # Normalize line endings
