@@ -1,0 +1,2 @@
+pad1: pad, (10, 10), 2
+rect_pad1: rect_pad, (-10, -10), 5, 45
