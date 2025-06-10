@@ -156,24 +156,33 @@ def generate_net_colors(net_ids):
         net_colors[net_id] = (r, g, b)
     return net_colors
 
+def to_index(x, y, origin_x, origin_y, grid_size):
+    ix = round((x - origin_x) / grid_size)
+    iy = round((y - origin_y) / grid_size)
+    return ix, iy
+
 def convert_to_grid(pads, vias, grid_size):
     """
     将 pads 和 vias 转换为 Grid 结构。
     - net_colors: {"1": (255, 0, 0)}
     """
     pad_points = defaultdict(set)
-
+    
     net_ids = set(pad["net"] for pad in pads) | set(via["net"] for via in vias)
     net_colors = generate_net_colors(net_ids)
-
+    print("Net colors: \n")
+    print(net_colors)
+    
+    
     for item in pads + vias:
         net_id = item["net"]
         x, y = item["x"], item["y"]
-        
         rgb = net_colors.get(net_id, (0, 0, 0))  # default
         net_obj = Net(pad_c = rgb, route_c = rgb)
         pad_points[net_obj].add(Point(x, y))
 
+        
+    
     all_points = []
     for point_set in pad_points.values():
         for pt in point_set:
@@ -182,8 +191,17 @@ def convert_to_grid(pads, vias, grid_size):
     max_y = (max(pt.y for pt in all_points) + grid_size) if all_points else 0
     min_x = (min(pt.x for pt in all_points) - grid_size) if all_points else 0
     min_y = (min(pt.y for pt in all_points) - grid_size) if all_points else 0
+    
+    index_pad_points = defaultdict(set)
+    for net, points in pad_points.items():
+        for pt in points:
+            ix, iy = to_index(pt.x, pt.y, min_x, min_y, grid_size)
+            index_pad_points[net].add(Point(ix, iy))
 
-    return Grid(pads = pad_points, width = max_x - min_x, height = max_y - min_y)
+    return Grid(pads = index_pad_points, traces = defaultdict(set), diagonal_traces = defaultdict(set), 
+                width = round((max_x - min_x) / grid_size), 
+                height = round((max_y - min_y)/grid_size))
+
 
 
 def save_aligned_pcb(file_path, grid_size):
