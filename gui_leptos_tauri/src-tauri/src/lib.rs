@@ -6,12 +6,14 @@ pub mod grid;
 pub mod naive_route;
 pub mod prim_mst;
 pub mod tauri_state;
-
+pub mod proba_grid;
+pub mod solve_proba_grid;
+pub mod hyperparameters;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use lazy_static::lazy_static;
 
-use crate::commands::{click_cell, do_naive_route, new_grid};
+use crate::commands::{naive_click_cell, naive_do_route, naive_new_grid};
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -23,9 +25,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            new_grid,
-            click_cell,
-            do_naive_route,
+            naive_new_grid,
+            naive_click_cell,
+            naive_do_route,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

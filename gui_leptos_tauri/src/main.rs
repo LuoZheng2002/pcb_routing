@@ -1,4 +1,9 @@
 mod app;
+mod naive_page;
+mod home_page;
+mod proba_page;
+mod redirect_button;
+mod nav_bar;
 
 use app::*;
 use leptos::prelude::*;

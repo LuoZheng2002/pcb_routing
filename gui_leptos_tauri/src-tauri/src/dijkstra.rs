@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::{BinaryHeap, HashMap, HashSet}};
+use std::{cmp::Ordering, collections::{BTreeSet, BinaryHeap, HashMap, HashSet}};
 
 use crate::grid::Point;
 
@@ -108,8 +108,19 @@ impl DijkstraModel {
             }
         }
         path.reverse();
+        let mut current = self.start;
+        let covered: BTreeSet<Point> = path.iter().fold(BTreeSet::new(), |mut acc, dir| {
+            current = Point {
+                x: (current.x as i32 + dir.x) as usize,
+                y: (current.y as i32 + dir.y) as usize,
+            };
+            acc.insert(current);
+            acc
+        });
         Ok(DijkstraResult {
             start: self.start,
+            end: self.end,
+            covered,
             directions: path,
             distance: *dist.get(&self.end).unwrap_or(&f32::INFINITY),
         })
@@ -128,6 +139,8 @@ impl DijkstraModel {
 
 pub struct DijkstraResult{
     pub start: Point,
+    pub end: Point, 
     pub directions: Vec<Direction>,
+    pub covered: BTreeSet<Point>, // Points in the path
     pub distance: f32,
 }

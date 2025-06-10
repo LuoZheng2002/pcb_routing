@@ -34,7 +34,7 @@ where
 }
 
 
-fn new_grid_local(rows: usize, cols: usize) -> Result<ColorGrid, String> {
+fn naive_new_grid_local(rows: usize, cols: usize) -> Result<ColorGrid, String> {
     println!("Creating new grid locally ");
     let mut tauri_state = TAURI_STATE.lock().unwrap();
     tauri_state.grid = Grid::new(rows, cols);
@@ -43,21 +43,21 @@ fn new_grid_local(rows: usize, cols: usize) -> Result<ColorGrid, String> {
 }
 
 #[tauri::command]
-pub fn new_grid(rows: usize, cols: usize) -> MyResult<ColorGrid, String> {
+pub fn naive_new_grid(rows: usize, cols: usize) -> MyResult<ColorGrid, String> {
     if USE_PYTHON_SERVER {
         match call_python_server::<NewGridArgs,ColorGrid>("new_grid", NewGridArgs { rows, cols }) {
             Ok(grid) => MyResult::Ok(grid),
             Err(e) => MyResult::Err(e),
         }
     } else {
-        match new_grid_local(rows, cols) {
+        match naive_new_grid_local(rows, cols) {
             Ok(grid) => MyResult::Ok(grid),
             Err(e) => MyResult::Err(e),
         }
     }
 }
 
-fn click_cell_local(
+fn naive_click_cell_local(
     x: usize,
     y: usize,
     r: u8,
@@ -87,7 +87,7 @@ fn click_cell_local(
 }
 
 #[tauri::command]
-pub fn click_cell(
+pub fn naive_click_cell(
     x: usize,
     y: usize,
     r: u8,
@@ -109,7 +109,48 @@ pub fn click_cell(
             Err(e) => MyResult::Err(e),
         }
     } else {
-        match click_cell_local(x, y, r, g, b) {
+        match naive_click_cell_local(x, y, r, g, b) {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    }
+}
+
+
+fn proba_click_cell_local(
+    x: usize,
+    y: usize,
+    r: u8,
+    g: u8,
+    b: u8,
+) -> Result<ColorGrid, String> {
+    todo!()
+}
+
+#[tauri::command]
+pub fn proba_click_cell(
+    x: usize,
+    y: usize,
+    r: u8,
+    g: u8,
+    b: u8,
+) -> MyResult<ColorGrid, String> {
+    if USE_PYTHON_SERVER {
+        match call_python_server::<ClickCellArgs, ColorGrid>(
+            "click_cell",
+            ClickCellArgs {
+                x,
+                y,
+                r,
+                g,
+                b,
+            },
+        ) {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    } else {
+        match proba_click_cell_local(x, y, r, g, b) {
             Ok(grid) => MyResult::Ok(grid),
             Err(e) => MyResult::Err(e),
         }
@@ -118,7 +159,7 @@ pub fn click_cell(
 
 
 
-fn do_naive_route_local() -> Result<ColorGrid, String> {
+fn naive_do_route_local() -> Result<ColorGrid, String> {
     let mut tauri_state = TAURI_STATE.lock().unwrap();
     let old_grid = tauri_state.grid.clone();
     tauri_state.grid = naive_route(old_grid)?;
@@ -127,14 +168,167 @@ fn do_naive_route_local() -> Result<ColorGrid, String> {
 }
 
 #[tauri::command]
-pub fn do_naive_route() -> MyResult<ColorGrid, String> {
+pub fn naive_do_route() -> MyResult<ColorGrid, String> {
     if USE_PYTHON_SERVER {
         match call_python_server::<(), ColorGrid>("naive_route", ()) {
             Ok(grid) => MyResult::Ok(grid),
             Err(e) => MyResult::Err(e),
         }
     } else {
-        match do_naive_route_local() {
+        match naive_do_route_local() {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    }
+}
+
+
+
+fn proba_clear_local() -> Result<ColorGrid, String> {
+    // let mut tauri_state = TAURI_STATE.lock().unwrap();
+    // let old_grid = tauri_state.grid.clone();
+    // tauri_state.grid = naive_route(old_grid)?;
+    // let color_grid = tauri_state.grid.to_color_grid();
+    // Ok(color_grid)
+    todo!()
+}
+
+#[tauri::command]
+pub fn proba_clear() -> MyResult<ColorGrid, String> {
+    if USE_PYTHON_SERVER {
+        match call_python_server::<(), ColorGrid>("naive_route", ()) {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    } else {
+        match proba_clear_local() {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    }
+}
+
+
+fn proba_init_local() -> Result<ColorGrid, String> {
+    // let mut tauri_state = TAURI_STATE.lock().unwrap();
+    // let old_grid = tauri_state.grid.clone();
+    // tauri_state.grid = naive_route(old_grid)?;
+    // let color_grid = tauri_state.grid.to_color_grid();
+    // Ok(color_grid)
+    todo!()
+}
+
+#[tauri::command]
+pub fn proba_init() -> MyResult<ColorGrid, String> {
+    if USE_PYTHON_SERVER {
+        match call_python_server::<(), ColorGrid>("naive_route", ()) {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    } else {
+        match proba_init_local() {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    }
+}
+
+
+fn proba_update_posterior_local() -> Result<ColorGrid, String> {
+    // let mut tauri_state = TAURI_STATE.lock().unwrap();
+    // let old_grid = tauri_state.grid.clone();
+    // tauri_state.grid = naive_route(old_grid)?;
+    // let color_grid = tauri_state.grid.to_color_grid();
+    // Ok(color_grid)
+    todo!()
+}
+
+#[tauri::command]
+pub fn proba_update_posterior() -> MyResult<ColorGrid, String> {
+    if USE_PYTHON_SERVER {
+        match call_python_server::<(), ColorGrid>("naive_route", ()) {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    } else {
+        match proba_update_posterior_local() {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    }
+}
+
+
+
+fn proba_next_net_local() -> Result<ColorGrid, String> {
+    // let mut tauri_state = TAURI_STATE.lock().unwrap();
+    // let old_grid = tauri_state.grid.clone();
+    // tauri_state.grid = naive_route(old_grid)?;
+    // let color_grid = tauri_state.grid.to_color_grid();
+    // Ok(color_grid)
+    todo!()
+}
+
+#[tauri::command]
+pub fn proba_next_net() -> MyResult<ColorGrid, String> {
+    if USE_PYTHON_SERVER {
+        match call_python_server::<(), ColorGrid>("naive_route", ()) {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    } else {
+        match proba_next_net_local() {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    }
+}
+
+
+
+fn proba_next_pair_local() -> Result<ColorGrid, String> {
+    // let mut tauri_state = TAURI_STATE.lock().unwrap();
+    // let old_grid = tauri_state.grid.clone();
+    // tauri_state.grid = naive_route(old_grid)?;
+    // let color_grid = tauri_state.grid.to_color_grid();
+    // Ok(color_grid)
+    todo!()
+}
+
+#[tauri::command]
+pub fn proba_next_pair() -> MyResult<ColorGrid, String> {
+    if USE_PYTHON_SERVER {
+        match call_python_server::<(), ColorGrid>("naive_route", ()) {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    } else {
+        match proba_next_pair_local() {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    }
+}
+
+
+fn proba_sample_local() -> Result<ColorGrid, String> {
+    // let mut tauri_state = TAURI_STATE.lock().unwrap();
+    // let old_grid = tauri_state.grid.clone();
+    // tauri_state.grid = naive_route(old_grid)?;
+    // let color_grid = tauri_state.grid.to_color_grid();
+    // Ok(color_grid)
+    todo!()
+}
+
+#[tauri::command]
+pub fn proba_sample() -> MyResult<ColorGrid, String> {
+    if USE_PYTHON_SERVER {
+        match call_python_server::<(), ColorGrid>("naive_route", ()) {
+            Ok(grid) => MyResult::Ok(grid),
+            Err(e) => MyResult::Err(e),
+        }
+    } else {
+        match proba_sample_local() {
             Ok(grid) => MyResult::Ok(grid),
             Err(e) => MyResult::Err(e),
         }

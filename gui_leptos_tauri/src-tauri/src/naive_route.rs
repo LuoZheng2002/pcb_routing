@@ -1,4 +1,5 @@
 use std::cmp::Reverse;
+use std::collections::BTreeSet;
 use std::collections::BinaryHeap;
 use std::collections::HashSet;
 
@@ -37,7 +38,9 @@ pub fn naive_route(mut unrouted_grid: Grid) -> Result<Grid, String> {
                     let dijkstra_model = prepare_dijkstra_model_unrouted(net.clone(), point1, point2);
                     let DijkstraResult{distance, ..} = dijkstra_model.run().unwrap_or(DijkstraResult{
                         start: point1,
+                        end: point2,
                         directions: vec![],
+                        covered: BTreeSet::new(),
                         distance: f32::INFINITY,
                     });
                     pairs.push((OrderedFloat(distance), net.clone(), PointPair::new(point1, point2)));
@@ -74,7 +77,7 @@ pub fn naive_route(mut unrouted_grid: Grid) -> Result<Grid, String> {
         // construct dijkstra model for the current pair of pads
         let dijkstra_model = prepare_dijkstra_model(&grid, &net, point_pair.start(), point_pair.end());
         // run dijkstra's algorithm
-        let DijkstraResult { start: _, directions, distance: _ } = dijkstra_model.run()?;
+        let DijkstraResult { directions, .. } = dijkstra_model.run()?;
         // add the route to the grid
         let mut current_point = point_pair.start();
         grid.traces.entry(net.clone()).or_default().insert(current_point);
