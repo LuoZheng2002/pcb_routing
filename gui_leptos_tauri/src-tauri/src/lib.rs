@@ -13,7 +13,7 @@ pub mod hyperparameters;
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use lazy_static::lazy_static;
 
-use crate::commands::{naive_click_cell, naive_do_route, naive_new_grid};
+use crate::commands::*;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -28,6 +28,13 @@ pub fn run() {
             naive_new_grid,
             naive_click_cell,
             naive_do_route,
+            proba_clear,
+            proba_click_cell,
+            proba_init,
+            proba_update_posterior,
+            proba_next_net,
+            proba_next_pair,
+            proba_sample,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -3,4 +3,4 @@
 
 pub const LENGTH_PENALTY_RATE: f64 = 1.0;
 pub const TURN_PENALTY_RATE: f64 = 3.0;
-pub const HALF_PROBABILITY_RAW_SCORE: f64 = 20.0;
+pub const HALF_PROBABILITY_RAW_SCORE: f64 = 10.0;

@@ -189,7 +189,7 @@ pub fn NaivePage() -> impl IntoView {
                                         let x = col_idx;
                                         view! {
                                             <div style=format!(
-                                                "width: 40px; height: 40px; background-color: {}; border: 2px solid black; display: inline",
+                                                "width: 16px; height: 16px; background-color: {}; border: 2px solid black; display: inline",
                                                 color_str,
                                             )
                                             on:click=move |_| on_cell_click(x, y)

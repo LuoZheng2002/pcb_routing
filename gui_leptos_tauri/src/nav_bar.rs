@@ -6,10 +6,10 @@ use leptos_router::{components::A};
 #[component]
 pub fn NavBar() -> impl IntoView {
     view! {
-        <div>
-            <A href="/">HomePage</A>
-            <A href="/naive">NaivePage</A>
-            <A href="/proba">ProbaPage</A>
-        </div>
+        <nav>
+            <A href="/">" Home Page "</A>
+            <A href="/naive">" Naive Page "</A>
+            <A href="/proba">" Proba Page "</A>
+        </nav>
     }
 }

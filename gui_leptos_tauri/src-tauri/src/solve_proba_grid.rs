@@ -99,8 +99,6 @@ pub fn first_iteration_prior(
             };
             let trace_set = visited_traces.entry(pad_pair_id.clone()).or_default();
             if trace_set.insert(trace.clone()){
-                // If the trace was not already visited, insert it into the traces map
-                let trace_id = get_next_trace_id();
                 let prior_probability = 1.0; // Initial prior probability for the first iteration is 100%
                 let score = calculate_trace_score(&result.covered, &result.directions);
                 let prior_anchor = prior_probability * score; // Initial prior anchor
@@ -118,6 +116,7 @@ pub fn first_iteration_prior(
                     .or_default()
                     .insert(trace_id.clone(), trace);
                 trace_proba_infos.insert(trace_id.clone(), trace_proba_info);
+                println!("Trace created for pad pair ID: {:?}, trace ID: {:?}", pad_pair_id, trace_id);
             }else{
                 panic!("Trace already exists for pad pair ID: {:?}", pad_pair_id);
             }
@@ -166,6 +165,8 @@ pub fn first_iteration_prior(
             }
         }
     }
+    println!("Trace proba info count: {}", trace_proba_infos.len());
+
 
     // Prepare the output structure
     let output = ProbaGridOutput {

@@ -210,7 +210,7 @@ pub fn ProbaPage() -> impl IntoView {
                 <button style="width: 6rem;" on:click=move|_| on_color_click(Color{r: 255, g: 255, b: 0})>"Yellow"</button>
                 <button style="width: 6rem;" on:click=move|_| on_color_click(Color{r: 255, g: 0, b: 255})>"Magenta"</button>
                 <button style="width: 6rem;" on:click=move|_| on_color_click(Color{r: 0, g: 255, b: 255})>"Cyan"</button>
-                <span style:width="2rem;" style:background-color=move||{format!("#{:06x}", ((r.get() as u32) << 16) + ((g.get() as u32) << 8) + b.get() as u32)}></span>
+                <span style:background-color=move||{format!("#{:06x}", ((r.get() as u32) << 16) + ((g.get() as u32) << 8) + b.get() as u32)}>"Color"</span>
             </div>
             <div>
                 <button style="width: 6rem;" on:click=on_init_click>"Init"</button>
@@ -244,7 +244,7 @@ pub fn ProbaPage() -> impl IntoView {
                                         let x = col_idx;
                                         view! {
                                             <div style=format!(
-                                                "width: 40px; height: 40px; background-color: {}; border: 2px solid black; display: inline",
+                                                "width: 16px; height: 16px; background-color: {}; border: 2px solid black; display: inline",
                                                 color_str,
                                             )
                                             on:click=move |_| on_cell_click(x, y)

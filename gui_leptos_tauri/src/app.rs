@@ -32,9 +32,9 @@ pub fn App() -> impl IntoView {
     <div>Hello world</div>
     <div id="root">
       // we wrap the whole app in a <Router/> to allow client-side navigation
-      // from our nav links below
-      <NavBar/>
+      // from our nav links below      
       <Router>
+        <NavBar/>
         <main>
           // <Routes/> both defines our routes and shows them on the page
           <Routes fallback=|| "Not found.">
