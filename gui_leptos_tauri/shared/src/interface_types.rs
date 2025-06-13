@@ -33,6 +33,11 @@ pub struct NewGridArgs{
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct UpdatePosteriorArgs{
+    pub coefficient: f64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ClickCellArgs{
     pub x: usize,
     pub y: usize,

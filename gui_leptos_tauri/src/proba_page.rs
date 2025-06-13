@@ -1,6 +1,6 @@
 use leptos::{prelude::*, tachys::view, task::spawn_local};
 use serde_wasm_bindgen::{from_value, to_value};
-use shared::interface_types::{ClickCellArgs, Color, ColorGrid, MyResult, NewGridArgs};
+use shared::interface_types::{ClickCellArgs, Color, ColorGrid, MyResult, NewGridArgs, UpdatePosteriorArgs};
 use wasm_bindgen::prelude::*;
 
 use crate::app::invoke;
@@ -16,6 +16,8 @@ pub fn ProbaPage() -> impl IntoView {
     let (r, set_r) = signal::<u8>(0);
     let (g, set_g) = signal::<u8>(0);
     let (b, set_b) = signal::<u8>(0);
+
+    let (slider_value, set_slider_value) = signal::<f64>(0.5);
     fn create_new_grid(rows: usize, cols: usize)-> ColorGrid{
         let color_grid = (0..rows)
             .map(|_| {
@@ -108,7 +110,11 @@ pub fn ProbaPage() -> impl IntoView {
     let on_update_posterior_click = move |_| {
         spawn_local(async move{
             set_err_msg.set("updating posterior".to_string());
-            let result = invoke("proba_update_posterior", JsValue::NULL).await;
+            let args = UpdatePosteriorArgs {
+                coefficient: slider_value.get(),
+            };
+            let args = to_value(&args).unwrap();
+            let result = invoke("proba_update_posterior", args).await;
             set_err_msg.set("posterior updated".to_string());
             let result = from_value::<MyResult<ColorGrid, String>>(result).unwrap();
             match result {
@@ -220,6 +226,23 @@ pub fn ProbaPage() -> impl IntoView {
                 <button style="width: 6rem;" on:click=on_next_net_click>"Next Net"</button>
                 <button style="width: 6rem;" on:click=on_next_pair_click>"Next Pair"</button>
                 <button style="width: 6rem;" on:click=on_sample_click>"Sample"</button>
+            </div>
+            <div>                
+                <input
+                    id="slider"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value=move || slider_value.get().to_string()
+                    on:input=move |ev| {
+                        // Parse the slider value from the input event
+                        if let Ok(val) = event_target_value(&ev).parse::<f64>() {
+                            set_slider_value.set(val);
+                        }
+                    }
+                />
+                <label for="slider">Slider Value: {move || slider_value.get().to_string()}</label>
             </div>
             <div style="
             width: 600px;

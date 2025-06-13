@@ -2,7 +2,7 @@ use std::{io::{Read, Write}, vec};
 
 use shared::interface_types::{ClickCellArgs, Color, ColorGrid, MyResult, NewGridArgs};
 
-use crate::{grid::{Grid, Net, Point}, naive_route::naive_route, proba_grid::{NetID, ProbaGridInput, ProbaGridState}, solve_proba_grid::{first_iteration_prior, update_posterior}, tauri_state::TAURI_STATE, TCP_STREAM};
+use crate::{grid::{Grid, Net, Point}, naive_route::naive_route, proba_grid::{NetID, ProbaGridProblem, ProbaGridState}, solve_proba_grid::{first_iteration_prior, update_posterior}, tauri_state::TAURI_STATE, TCP_STREAM};
 
 const USE_PYTHON_SERVER: bool = false;
 
@@ -221,11 +221,11 @@ fn proba_clear_local(rows: usize, cols: usize) -> Result<ColorGrid, String> {
     println!("Creating new grid locally ");
     let mut tauri_state = TAURI_STATE.lock().unwrap();
     tauri_state.proba_grid = ProbaGridState::Uninitialized {
-        input: ProbaGridInput {
+        input: ProbaGridProblem {
             width: rows,
             height: cols,
             nets: std::collections::HashMap::new(),
-            pads: std::collections::HashMap::new(),
+            net_to_pads: std::collections::HashMap::new(),
         },
     };
     let grid = tauri_state.proba_grid.to_color_grid();
@@ -276,26 +276,26 @@ pub fn proba_init() -> MyResult<ColorGrid, String> {
 }
 
 
-fn proba_update_posterior_local() -> Result<ColorGrid, String> {
+fn proba_update_posterior_local(coefficient: f64) -> Result<ColorGrid, String> {
     let mut tauri_state = TAURI_STATE.lock().unwrap();
     let grid = match &mut tauri_state.proba_grid {
         ProbaGridState::Initialized { output } => output,
         _ => return Err("Proba grid is not initialized".to_string()),
     };
-    update_posterior(grid)?;
+    update_posterior(grid, coefficient)?;
     let color_grid = grid.to_color_grid();
     Ok(color_grid)    
 }
 
 #[tauri::command]
-pub fn proba_update_posterior() -> MyResult<ColorGrid, String> {
+pub fn proba_update_posterior(coefficient: f64) -> MyResult<ColorGrid, String> {
     if USE_PYTHON_SERVER {
         match call_python_server::<(), ColorGrid>("naive_route", ()) {
             Ok(grid) => MyResult::Ok(grid),
             Err(e) => MyResult::Err(e),
         }
     } else {
-        match proba_update_posterior_local() {
+        match proba_update_posterior_local(coefficient) {
             Ok(grid) => MyResult::Ok(grid),
             Err(e) => MyResult::Err(e),
         }

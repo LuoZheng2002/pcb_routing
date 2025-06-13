@@ -1,6 +1,6 @@
-use std::{cell::RefCell, collections::{BTreeSet, HashMap, HashSet}};
+use std::{cell::RefCell, collections::{BTreeSet, HashMap, HashSet}, num::NonZeroUsize};
 
-use crate::{dijkstra::{DijkstraModel, Direction}, grid::{Point, PointPair}, hyperparameters::{HALF_PROBABILITY_RAW_SCORE, LENGTH_PENALTY_RATE, TURN_PENALTY_RATE}, proba_grid::{NetID, PadPairToRoute, PadPairToRouteID, ProbaGridInput, ProbaGridOutput, Trace, TraceID, TraceProbaInfo}};
+use crate::{dijkstra::{DijkstraModel, Direction}, grid::{Point, PointPair}, hyperparameters::{HALF_PROBABILITY_RAW_SCORE, LENGTH_PENALTY_RATE, TURN_PENALTY_RATE}, proba_grid::{NetID, PadPair, PadPairID, ProbaGridProblem, ProbaGrid, TraceInfo, TraceID, TraceProbaInfo}};
 
 
 
@@ -19,27 +19,28 @@ pub fn calculate_trace_score(covered: &BTreeSet<Point>, directions: &Vec<Directi
     let score_raw = total_length as f64* LENGTH_PENALTY_RATE + turns as f64 * TURN_PENALTY_RATE;
     let k = f64::ln(2.0)/ HALF_PROBABILITY_RAW_SCORE;
     let score = f64::exp(-k * score_raw);
+    assert!(score >= 0.0 && score <= 1.0, "Score must be between 0 and 1, got: {}", score);
     score
 } 
 
 
 pub fn first_iteration_prior(
-    input: ProbaGridInput,
-) -> Result<ProbaGridOutput, String> {
+    input: ProbaGridProblem,
+) -> Result<ProbaGrid, String> {
     // Initialize the output structure
-    let ProbaGridInput {
+    let ProbaGridProblem {
         width,
         height,
         nets,
-        pads,
+        net_to_pads: pads,
     } = input;
     let mut next_pair_id = 0;
     let mut get_next_pair_id = || {
-        let id = PadPairToRouteID(next_pair_id);
+        let id = PadPairID(next_pair_id);
         next_pair_id += 1;
         id
     };
-    let mut pad_pairs_to_route:HashMap<NetID, HashMap<PadPairToRouteID, PadPairToRoute>> = pads
+    let mut pad_pairs_to_route:HashMap<NetID, HashMap<PadPairID, PadPair>> = pads
         .iter()
         .map(|(net_id, pad_set)| {
             let mut pairs = HashMap::new();
@@ -51,7 +52,7 @@ pub fn first_iteration_prior(
                     let end = point_pair.end();
                     assert_ne!(start, end, "Pad pair start and end points must be different");
                     let pad_pair_id = get_next_pair_id();
-                    let route = PadPairToRoute {
+                    let route = PadPair {
                         net_id: net_id.clone(),
                         pad_pair_id: pad_pair_id.clone(),
                         start,
@@ -64,8 +65,8 @@ pub fn first_iteration_prior(
         }).collect();
     
     // first iteration: get all directly connected pad pairs
-    let mut visited_traces: HashMap<PadPairToRouteID, HashSet<Trace>> = HashMap::new();
-    let mut traces: HashMap<PadPairToRouteID, HashMap<TraceID, Trace>> = HashMap::new();
+    let mut visited_traces: HashMap<PadPairID, HashSet<TraceInfo>> = HashMap::new();
+    let mut traces: HashMap<PadPairID, HashMap<TraceID, TraceInfo>> = HashMap::new();
     let mut trace_proba_infos: HashMap<TraceID, TraceProbaInfo> = HashMap::new();
     let mut next_trace_id = 0;
     let mut get_next_trace_id = || {
@@ -89,7 +90,7 @@ pub fn first_iteration_prior(
             };
             let result = dijkstra_model.run().map_err(|e| format!("Dijkstra's algorithm failed: {}", e))?;
             let covered_vec = result.covered.iter().cloned().collect::<Vec<_>>();
-            let trace = Trace {
+            let trace = TraceInfo {
                 net_id: pair.net_id,
                 pad_pair_id: *pad_pair_id,
                 trace_id,
@@ -123,7 +124,7 @@ pub fn first_iteration_prior(
         }
     }
     let mut trace_collision_adjacency: HashMap<TraceID, HashSet<TraceID>> = HashMap::new();
-    let traces_indexed_from_net: HashMap<NetID, HashMap<TraceID, Trace>> = traces.values()
+    let traces_indexed_from_net: HashMap<NetID, HashMap<TraceID, TraceInfo>> = traces.values()
         .flat_map(|trace_map| {
             trace_map.values()
                 .map(|trace| (trace.net_id, trace.trace_id, trace.clone()))
@@ -169,12 +170,12 @@ pub fn first_iteration_prior(
 
 
     // Prepare the output structure
-    let output = ProbaGridOutput {
+    let output = ProbaGrid {
         width,
         height,
         nets,
-        pads,
-        pad_pairs_to_route,
+        net_to_pads: pads,
+        net_to_pad_pairs: pad_pairs_to_route,
         visited_traces,
         traces,
         trace_proba_infos,
@@ -183,9 +184,9 @@ pub fn first_iteration_prior(
     Ok(output)
 }
 
-pub fn update_posterior(output: &mut ProbaGridOutput) -> Result<(), String> {
+pub fn update_posterior(output: &mut ProbaGrid, coefficient: f64) -> Result<(), String> {
     // Update the posterior probabilities based on the prior anchor and collision adjacency
-    let ProbaGridOutput{
+    let ProbaGrid{
         trace_proba_infos,
         trace_collision_adjacency,
         ..  
@@ -198,27 +199,157 @@ pub fn update_posterior(output: &mut ProbaGridOutput) -> Result<(), String> {
         for collision_id in collision_set {
             let trace_proba_info = trace_proba_infos.get(collision_id)
                 .ok_or_else(|| format!("Collision Trace ID {:?} not found in trace_proba_infos", collision_id))?;
-            let old_posterior = trace_proba_info.new_posterior.borrow().clone();
+            let old_posterior = trace_proba_info.old_posterior.borrow().clone();
             let proba = if let Some(old_posterior) = old_posterior {
+                println!("Using old posterior for trace ID {:?}: {:?}", collision_id, old_posterior);
                 old_posterior
             } else {
+                println!("Old posterior for trace ID {:?} is None, using prior anchor", collision_id);
                 trace_proba_info.prior_anchor
             };
             let one_minus_proba = 1.0 - proba;
             assert!(one_minus_proba > 0.0, "One minus probability must be greater than 0");
             proba_product *= one_minus_proba;
         }
-        let evidence_proba = 1.0-proba_product;
+        let evidence_proba = proba_product;
         assert!(evidence_proba >= 0.0 && evidence_proba <= 1.0, "Evidence probability must be between 0 and 1");
-        let posterior = f64::sqrt(prior_anchor * evidence_proba);
+        // let posterior = f64::sqrt(prior_anchor * evidence_proba);
+        let posterior = f64::powf(prior_anchor, 1.0 - coefficient) * f64::powf(evidence_proba, coefficient);
         let mut new_posterior = target_trace_info.new_posterior.borrow_mut();
         *new_posterior = Some(posterior);
     }
     for trace_proba_info in trace_proba_infos.values_mut() {
         let mut old_posterior = trace_proba_info.old_posterior.borrow_mut();
         let mut new_posterior = trace_proba_info.new_posterior.borrow_mut();
+        assert!(new_posterior.is_some(), "New posterior must be set before updating old posterior");
         *old_posterior = new_posterior.clone();
         *new_posterior = None; // Clear the new posterior for the next iteration
+        println!("Updated trace ID: {:?}, posterior: {:?}", trace_proba_info.trace_id, old_posterior);
     }
     Ok(())
+}
+
+pub fn initialize_proba_grid(input: ProbaGridProblem) -> Result<ProbaGrid, String> {
+    let ProbaGridProblem {
+        width,
+        height,
+        nets,
+        net_to_pads,
+    } = input;
+
+    let mut pad_pair_id_generator = (0..).map(PadPairID);
+    let mut pad_pairs: HashMap<PadPairID, PadPair> = HashMap::new();
+    let net_to_pad_pairs = net_to_pads
+        .iter()
+        .map(|(net_id, pad_set)| {
+            let mut pairs_set = HashSet::new();
+            let points_vec: Vec<_> = pad_set.iter().cloned().collect();
+            for i in 0..points_vec.len() {
+                for j in (i + 1)..points_vec.len() {
+                    let point_pair = PointPair::new(points_vec[i], points_vec[j]);
+                    let start = point_pair.start();
+                    let end = point_pair.end();
+                    assert_ne!(start, end, "Pad pair start and end points must be different");
+                    let pad_pair_id = pad_pair_id_generator.next().unwrap();
+                    let pad_pair = PadPair {
+                        net_id: *net_id,
+                        pad_pair_id,
+                        start,
+                        end,
+                    };
+                    pairs_set.insert(pad_pair_id);
+                    pad_pairs.insert(pad_pair_id, pad_pair);
+                }
+            }
+            (net_id.clone(), pairs_set)
+        })
+        .collect();
+    
+    let grid = ProbaGrid {
+        width,
+        height,
+        nets,
+        net_to_pads,
+        net_to_pad_pairs,
+        pad_pairs,
+        visited_traces: BTreeSet::new(),
+        traces: HashMap::new(),
+        pad_pair_to_traces: HashMap::new(),
+        trace_collision_adjacency: HashMap::new(),
+        next_iteration: NonZeroUsize::new(1).unwrap(), // Start with the first iteration
+    };
+    Ok(grid)
+}
+
+// sample, for each pair_to_route, consider all pair_to_route from other nets, 
+// and each pair_to_route can choose one trace from all its registered traces, or it can choose nothing (can be a trace that hasn't been registered)
+// other trace rate: ?
+// 
+// there must be a sequence
+// our good wish ...
+
+// ratio: anchor is 1, and can be pulled by score and opportunity cost (probability determined by other traces / its current allocated probability)
+// and then all normalized to ...
+
+// how to pull in between different iterations? -> Determined by the last iteration.
+// the average score, and average opportunity cost
+
+// straight: 70% (pull: score, opportunity cost), detour once: 30%*70%, detour twice: ...
+// all traces belonging to "detour once" will be grouped together and has a total probability of 1-sum of straight probability
+// the sum probability will be allocated based on score, 
+pub fn sample_new_traces(grid: &mut ProbaGrid)-> Result<(), String>{
+    let ProbaGrid {
+        width,
+        height,
+        nets,
+        net_to_pads,
+        net_to_pad_pairs,
+        pad_pairs,
+        visited_traces,
+        traces,
+        pad_pair_to_traces,
+        trace_collision_adjacency,
+        next_iteration,
+    } = grid;
+    for (net_id, pad_pair_ids) in net_to_pad_pairs.iter() {
+        // randomly generate a trace for each pad pair of other nets (in a rare case the trace will not be generated)
+        let obstacle_traces: HashMap<PadPairID, Option<TraceID>> = net_to_pad_pairs.iter()
+            .filter(|(other_net_id, _)| *other_net_id != net_id)
+            .flat_map(|(_, pad_pair_ids)| {
+                pad_pair_ids.iter().map(|pad_pair_id| {
+                    let candidate_trace_ids = pad_pair_to_traces.get(pad_pair_id).unwrap();
+                    let mut sum_probability = 0.0;
+                    for candidate_trace_id in candidate_trace_ids.iter(){
+                        let candidate_trace = traces.get(candidate_trace_id).unwrap();
+                        
+                    }
+                    // candidate traces have traces of iterations from 1
+
+                    // how to make the probability of not choosing any trace to be variable?
+                    // don't make them to be variable
+
+                    // we need the trace's probability
+
+                    let trace_id = TraceID(next_iteration.get() as usize);
+                    (pad_pair_id.clone(), Some(trace_id))
+                })
+            })
+            .collect();
+        for pad_pair_id in pad_pair_ids.iter() {
+            let pad_pair = pad_pairs.get(pad_pair_id).ok_or_else(|| format!("PadPairID {:?} not found in net_to_pad_pairs", pad_pair_id))?;
+            // let trace_id = TraceID(next_iteration.get() as usize);
+            let dijkstra_model = DijkstraModel {
+                width: *width,
+                height: *height,
+                obstacles: net_to_pads.iter()
+                    .filter(|(net_id, _)| **net_id != pad_pair.net_id)
+                    .flat_map(|(_, points)| points.iter().cloned())
+                    .collect(),
+                diagonal_obstacles: HashSet::new(), // No diagonal obstacles in the first iteration
+                start: pad_pair.start,
+                end: pad_pair.end,
+            };
+        }
+    }
+    todo!()
 }
