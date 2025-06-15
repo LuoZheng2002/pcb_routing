@@ -10,14 +10,15 @@ use crate::app::invoke;
 pub fn ProbaPage() -> impl IntoView {
     let (err_msg, set_err_msg) = signal::<String>(String::new());
     // Reactive signals for rows and columns
-    let (rows, set_rows) = signal::<usize>(10);
-    let (cols, set_cols) = signal::<usize>(10);
+    let (rows, set_rows) = signal::<usize>(25);
+    let (cols, set_cols) = signal::<usize>(25);
     
     let (r, set_r) = signal::<u8>(0);
     let (g, set_g) = signal::<u8>(0);
     let (b, set_b) = signal::<u8>(0);
 
-    let (slider_value, set_slider_value) = signal::<f64>(0.5);
+    let (score_weight, set_score_weight) = signal::<f64>(0.5);
+    let (opportunity_cost_weight, set_opportunity_cost_weight) = signal::<f64>(0.5);
     fn create_new_grid(rows: usize, cols: usize)-> ColorGrid{
         let color_grid = (0..rows)
             .map(|_| {
@@ -111,7 +112,8 @@ pub fn ProbaPage() -> impl IntoView {
         spawn_local(async move{
             set_err_msg.set("updating posterior".to_string());
             let args = UpdatePosteriorArgs {
-                coefficient: slider_value.get(),
+                scoreWeight: score_weight.get(),
+                opportunityCostWeight: opportunity_cost_weight.get(),
             };
             let args = to_value(&args).unwrap();
             let result = invoke("proba_update_posterior", args).await;
@@ -221,11 +223,12 @@ pub fn ProbaPage() -> impl IntoView {
             <div>
                 <button style="width: 6rem;" on:click=on_init_click>"Init"</button>
                 <button style="width: 8rem;" on:click=on_update_posterior_click>"Update Posterior"</button>
+                <button style="width: 8rem;" on:click=on_sample_click>"Sample New Traces"</button>
             </div>
             <div>
                 <button style="width: 6rem;" on:click=on_next_net_click>"Next Net"</button>
                 <button style="width: 6rem;" on:click=on_next_pair_click>"Next Pair"</button>
-                <button style="width: 6rem;" on:click=on_sample_click>"Sample"</button>
+                
             </div>
             <div>                
                 <input
@@ -234,15 +237,36 @@ pub fn ProbaPage() -> impl IntoView {
                     min="0"
                     max="1"
                     step="0.01"
-                    value=move || slider_value.get().to_string()
+                    value=move || score_weight.get().to_string()
                     on:input=move |ev| {
                         // Parse the slider value from the input event
                         if let Ok(val) = event_target_value(&ev).parse::<f64>() {
-                            set_slider_value.set(val);
+                            set_score_weight.set(val);
+                            if score_weight.get() + opportunity_cost_weight.get() > 1.0 {
+                                set_opportunity_cost_weight.set(1.0 - score_weight.get());
+                            } 
                         }
                     }
                 />
-                <label for="slider">Slider Value: {move || slider_value.get().to_string()}</label>
+                <label for="slider">"Score weight: "{move || score_weight.get().to_string()}</label>
+                <input
+                    id="slider"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value=move || opportunity_cost_weight.get().to_string()
+                    on:input=move |ev| {
+                        // Parse the slider value from the input event
+                        if let Ok(val) = event_target_value(&ev).parse::<f64>() {
+                            set_opportunity_cost_weight.set(val);
+                            if score_weight.get() + opportunity_cost_weight.get() > 1.0 {
+                                set_score_weight.set(1.0 - opportunity_cost_weight.get());
+                            }
+                        }
+                    }
+                />
+                <label for="slider">"Opptortunity cost weight: "{move || opportunity_cost_weight.get().to_string()}</label>
             </div>
             <div style="
             width: 600px;

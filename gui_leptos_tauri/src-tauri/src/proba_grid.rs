@@ -1,8 +1,9 @@
+use core::num;
 use std::{cell::RefCell, collections::{BTreeSet, HashMap, HashSet}, num::NonZeroUsize, vec};
 
 use shared::interface_types::{Color, ColorGrid};
 
-use crate::{grid::Point, hyperparameters::{HALF_PROBABILITY_RAW_SCORE, ITERATION_TO_PRIOR_PROBABILITY, LENGTH_PENALTY_RATE, TURN_PENALTY_RATE}, solve_proba_grid::calculate_trace_score};
+use crate::{grid::Point, hyperparameters::{HALF_PROBABILITY_RAW_SCORE, ITERATION_TO_PRIOR_PROBABILITY, LENGTH_PENALTY_RATE, TURN_PENALTY_RATE}};
 
 #[derive(Debug, Clone)]
 pub struct NetInfo{
@@ -44,6 +45,26 @@ pub struct TracePath{
     pub diagonal_covered: BTreeSet<Point>, // points in the diagonal
 }
 
+impl TracePath{
+    pub fn collides_with(&self, other: &TracePath) -> bool {
+        // Check if the covered points intersect
+        !self.covered.is_disjoint(&other.covered) || !self.diagonal_covered.is_disjoint(&other.diagonal_covered)
+    }
+}
+
+
+pub struct PostProcessInput{
+    pub width: usize,
+    pub height: usize,
+    pub nets: HashMap<NetID, NetInfo>,
+    pub net_to_pads: HashMap<NetID, HashSet<Point>>, // NetID to list of pad coordinates
+    // output
+    pub net_to_pad_pairs: HashMap<NetID, HashSet<PadPairID>>, // NetID to PadPairToRouteID to PadPairToRoute
+    pub pad_pairs: HashMap<PadPairID, PadPair>, // PadPairToRouteID to PadPairToRoute
+    pub pad_pair_to_traces: HashMap<PadPairID, HashSet<TraceID>>, // PadPairID to TraceID
+    pub traces: HashMap<TraceID, TraceInfo>, // TraceID to Trace
+}
+
 #[derive(Debug, Clone)]
 pub struct TraceInfo{
     pub net_id: NetID,
@@ -60,8 +81,10 @@ pub struct TraceInfo{
     pub score_cache: RefCell<Option<f64>>, // Score of the trace, between 0 and 1
     // pub old_posterior_unnormalized: RefCell<Option<f64>>, // to be accessed in the next iteration
     pub posterior_normalized: RefCell<Option<f64>>, // to be accessed in the next iteration
-    pub temp_posterior_unnormalized: RefCell<Option<f64>>, // serve as a buffer for simultaneous updates
+    pub temp_posterior: RefCell<Option<f64>>, // serve as a buffer for simultaneous updates
 }
+
+
 
 impl TraceInfo{
     fn calculate_score(&self)->f64{
@@ -90,19 +113,20 @@ impl TraceInfo{
         // we do not use cache until there is performance issue
         self.calculate_score()
     }
-    fn calculate_prior_probability(&self)->f64{
-        ITERATION_TO_PRIOR_PROBABILITY.get(&self.iteration)
+    fn calculate_normalized_prior_probability(&self, num_traces_in_the_same_iteration: usize)->f64{
+        let sum_probability = ITERATION_TO_PRIOR_PROBABILITY.get(&self.iteration)
             .cloned()
-            .unwrap_or_else(|| panic!("No prior probability for iteration {:?}", self.iteration))
+            .unwrap_or_else(|| panic!("No prior probability for iteration {:?}", self.iteration));
+        sum_probability / (num_traces_in_the_same_iteration as f64)
     }
     /// this prior probability is not normalized
-    pub fn get_prior_probability(&self)->f64{
+    pub fn get_normalized_prior_probability(&self, num_traces_in_the_same_iteration: usize)->f64{
         // let mut prior_probability_cache = self.prior_probability_cache.borrow_mut();
         // *prior_probability_cache.get_or_insert_with(||{
         //     self.calculate_prior_probability()
         // })
         // we do not use cache until there is performance issue
-        self.calculate_prior_probability()
+        self.calculate_normalized_prior_probability(num_traces_in_the_same_iteration)
     }
     
     // pub fn calculate_fallback_posterior_unnormalized(&self, num_traces_in_the_same_iteration: usize)->f64{
@@ -123,9 +147,7 @@ impl TraceInfo{
         if let Some(old_posterior) = posterior_normalized.as_ref() {
             *old_posterior
         } else {            
-            let prior_probability = self.get_prior_probability();
-            let normalized_prior_probability = prior_probability / (num_traces_in_the_same_iteration as f64);
-            normalized_prior_probability
+            self.get_normalized_prior_probability(num_traces_in_the_same_iteration)
         }
     }
     // call stack: want to sample traces that block the way -> call get_posterior_normalized for other traces
@@ -185,7 +207,8 @@ impl ProbaGridProblem{
     }
 }
 
-
+#[derive(Copy, Debug, Clone, PartialEq, Hash, Eq, PartialOrd, Ord)]
+pub struct IterationNum(pub NonZeroUsize);
 
 pub struct ProbaGrid{
     pub width: usize,
@@ -196,14 +219,27 @@ pub struct ProbaGrid{
     pub net_to_pad_pairs: HashMap<NetID, HashSet<PadPairID>>, // NetID to PadPairToRouteID to PadPairToRoute
     pub pad_pairs: HashMap<PadPairID, PadPair>, // PadPairToRouteID to PadPairToRoute
     pub visited_traces: BTreeSet<TracePath>,
-    pub pad_pair_to_traces: HashMap<PadPairID, HashSet<TraceID>>, // PadPairID to TraceID
+    pub pad_pair_to_traces: HashMap<PadPairID, HashMap<IterationNum, HashSet<TraceID>>>, // PadPairID to TraceID
     pub traces: HashMap<TraceID, TraceInfo>, // TraceID to Trace
     pub trace_collision_adjacency: HashMap<TraceID, HashSet<TraceID>>,
     
     pub next_iteration: NonZeroUsize, // The next iteration to be processed, starting from 1
+    pub trace_id_generator: Box<dyn Iterator<Item=TraceID> + Send + 'static>, // A generator for TraceID, starting from 0
 }
 
+
 impl ProbaGrid{
+    pub fn get_num_traces_in_the_same_iteration(&self, trace_id: TraceID)->usize{
+        let trace_info = self.traces.get(&trace_id).unwrap();
+        let pad_pair_id = trace_info.pad_pair_id;
+        let iteration_num = trace_info.iteration;
+        let num = self.pad_pair_to_traces.get(&pad_pair_id).unwrap()
+            .get(&IterationNum(iteration_num)).unwrap()
+            .len();
+        assert!(num > 0, "There should be at least one trace in the same iteration");
+        num
+    }
+
     pub fn to_color_grid(&self)->ColorGrid{
         let mut grid = vec![vec![Color{r: 255, g: 255, b: 255}; self.width]; self.height];
         for (net_id, net_info) in &self.nets {
@@ -224,16 +260,19 @@ impl ProbaGrid{
             let net_info = self.nets.get(net_id).unwrap();
             let route_color = net_info.route_color.clone().unwrap();                
             for pad_pair_id in pad_pairs {
-                let trace_ids = self.pad_pair_to_traces.get(pad_pair_id).unwrap();
+                // trace_ids is a set of TraceID that combines the traces in each iteration
+                // use flat map
+                let trace_ids = self.pad_pair_to_traces.get(pad_pair_id).unwrap()
+                    .iter()            
+                    .flat_map(|(_, trace_ids)| trace_ids.iter())
+                    .cloned()
+                    .collect::<Vec<_>>();
                 for trace_id in trace_ids {
-                    let trace = self.traces.get(trace_id).unwrap();
+                    let trace = self.traces.get(&trace_id).unwrap();
                     for point in &trace.trace_path.covered {
                         let original_color = grid[point.y][point.x].clone();
-                        let opacity: f64 = if let Some(old_posterior) = trace.posterior_normalized.borrow().as_ref() {
-                            *old_posterior
-                        } else {
-                            trace.calculate_prior_probability()
-                        };
+                        let num_traces_in_the_same_iteration = self.get_num_traces_in_the_same_iteration(trace_id);
+                        let opacity: f64 = trace.get_posterior_normalized_with_fallback(num_traces_in_the_same_iteration);
                         let new_color = Color {
                             r: (route_color.r as f64 * opacity + original_color.r as f64 * (1.0-opacity)) as u8,
                             g: (route_color.g as f64 * opacity + original_color.g as f64 * (1.0-opacity)) as u8,

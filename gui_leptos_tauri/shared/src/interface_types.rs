@@ -33,8 +33,10 @@ pub struct NewGridArgs{
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+#[allow(non_snake_case)]
 pub struct UpdatePosteriorArgs{
-    pub coefficient: f64,
+    pub scoreWeight: f64,
+    pub opportunityCostWeight: f64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

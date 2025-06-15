@@ -15,12 +15,12 @@ pub struct DijkstraModel{
 impl DijkstraModel {
     pub fn run(&self) -> Result<DijkstraResult, String> {
         let mut heap = BinaryHeap::new();
-        let mut dist: HashMap<Point, f32> = HashMap::new();
+        let mut dist: HashMap<Point, f64> = HashMap::new();
         let mut prev: HashMap<Point, Point> = HashMap::new();
 
         #[derive(Debug, PartialEq)]
         struct State {
-            cost: f32,
+            cost: f64,
             position: Point,
         }
 
@@ -61,7 +61,7 @@ impl DijkstraModel {
                         continue;
                     }
                     let next_cost = cost + 1.0;
-                    if next_cost < *dist.get(&next).unwrap_or(&f32::INFINITY) {
+                    if next_cost < *dist.get(&next).unwrap_or(&f64::INFINITY) {
                         dist.insert(next, next_cost);
                         prev.insert(next, position);
                         heap.push(State { cost: next_cost, position: next });
@@ -76,8 +76,8 @@ impl DijkstraModel {
                     if self.obstacles.contains(&next) || self.diagonal_obstacles.contains(&top_left) {
                         continue;
                     }
-                    let next_cost = cost + (2.0f32).sqrt();
-                    if next_cost < *dist.get(&next).unwrap_or(&f32::INFINITY) {
+                    let next_cost = cost + (2.0f64).sqrt();
+                    if next_cost < *dist.get(&next).unwrap_or(&f64::INFINITY) {
                         dist.insert(next, next_cost);
                         prev.insert(next, position);
                         heap.push(State { cost: next_cost, position: next });
@@ -133,7 +133,7 @@ impl DijkstraModel {
             end: self.end,
             trace_path,
             trace_directions,
-            distance: *dist.get(&self.end).unwrap_or(&f32::INFINITY),
+            distance: *dist.get(&self.end).unwrap_or(&f64::INFINITY),
         })
     }
 
@@ -153,5 +153,5 @@ pub struct DijkstraResult{
     pub end: Point, 
     pub trace_path: TracePath,
     pub trace_directions: Vec<Direction>,
-    pub distance: f32,
+    pub distance: f64,
 }

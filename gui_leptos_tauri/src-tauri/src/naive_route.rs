@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use crate::grid::*;
 use crate::dijkstra::*;
 use crate::prim_mst::prim_mst;
+use crate::proba_grid::TracePath;
 use ordered_float::OrderedFloat;
 
 
@@ -26,7 +27,7 @@ pub fn naive_route(mut unrouted_grid: Grid) -> Result<Grid, String> {
         }
     };
     // prepare all the pairs of pads to route
-    let pad_pairs: Vec<(OrderedFloat<f32>, Net, PointPair)> = unrouted_grid.pads.iter()
+    let pad_pairs: Vec<(OrderedFloat<f64>, Net, PointPair)> = unrouted_grid.pads.iter()
         .flat_map(|(net, points)| {
             // permutate all pairs and calculate their distance using Dijkstra's algorithm
             let mut pairs = vec![];
@@ -39,9 +40,12 @@ pub fn naive_route(mut unrouted_grid: Grid) -> Result<Grid, String> {
                     let DijkstraResult{distance, ..} = dijkstra_model.run().unwrap_or(DijkstraResult{
                         start: point1,
                         end: point2,
-                        directions: vec![],
-                        covered: BTreeSet::new(),
-                        distance: f32::INFINITY,
+                        trace_directions: vec![],
+                        distance: f64::INFINITY,
+                        trace_path: TracePath{
+                            covered: BTreeSet::new(),
+                            diagonal_covered: BTreeSet::new(),
+                        },
                     });
                     pairs.push((OrderedFloat(distance), net.clone(), PointPair::new(point1, point2)));
                 }

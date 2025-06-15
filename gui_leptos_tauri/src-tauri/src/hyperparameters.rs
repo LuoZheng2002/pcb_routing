@@ -1,4 +1,4 @@
-use std::{collections::HashMap, num::NonZeroUsize};
+use std::{collections::HashMap, num::NonZeroUsize, sync::Mutex};
 
 use lazy_static::lazy_static;
 
@@ -9,11 +9,13 @@ pub const LENGTH_PENALTY_RATE: f64 = 1.0;
 pub const TURN_PENALTY_RATE: f64 = 3.0;
 pub const HALF_PROBABILITY_RAW_SCORE: f64 = 10.0;
 
-pub const SCORE_WEIGHT: f64 = 0.3; // how much score contributes to the final probability
-pub const OPPORTUNITY_COST_WEIGHT: f64 = 0.3; // how much opportunity cost contributes to the final probability
+pub const MAX_TRACES_PER_ITERATION: usize = 4; // Maximum number of traces per iteration
+pub const MAX_GENERATION_ATTEMPTS: usize = 10; // Maximum number of attempts to generate a trace
 
 
 lazy_static!{
+    pub static ref SCORE_WEIGHT: Mutex<f64> = Mutex::new(0.3);
+    pub static ref OPPORTUNITY_COST_WEIGHT: Mutex<f64> = Mutex::new(0.3);
     pub static ref ITERATION_TO_PRIOR_PROBABILITY: HashMap<NonZeroUsize, f64> = {
         let mut map = HashMap::new();
         let mut remaining_probability = 1.0; // Start with a total probability of 1.0

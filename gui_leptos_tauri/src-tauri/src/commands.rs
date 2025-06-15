@@ -2,7 +2,7 @@ use std::{io::{Read, Write}, vec};
 
 use shared::interface_types::{ClickCellArgs, Color, ColorGrid, MyResult, NewGridArgs};
 
-use crate::{grid::{Grid, Net, Point}, naive_route::naive_route, proba_grid::{NetID, ProbaGridProblem, ProbaGridState}, solve_proba_grid::{first_iteration_prior, update_posterior}, tauri_state::TAURI_STATE, TCP_STREAM};
+use crate::{grid::{Grid, Net, Point}, hyperparameters::{OPPORTUNITY_COST_WEIGHT, SCORE_WEIGHT}, naive_route::naive_route, proba_grid::{NetID, ProbaGridProblem, ProbaGridState}, solve_proba_grid::{initialize_proba_grid, sample_new_traces, update_posterior}, tauri_state::TAURI_STATE, TCP_STREAM};
 
 const USE_PYTHON_SERVER: bool = false;
 
@@ -254,7 +254,7 @@ fn proba_init_local() -> Result<ColorGrid, String> {
         ProbaGridState::Uninitialized { input } => input,
         _ => return Err("Proba grid is already initialized".to_string()),
     };
-    let grid_output = first_iteration_prior(grid.clone())?;
+    let grid_output = initialize_proba_grid(grid.clone())?;
     tauri_state.proba_grid = ProbaGridState::Initialized { output: grid_output };
     let color_grid = tauri_state.proba_grid.to_color_grid();
     Ok(color_grid)
@@ -276,26 +276,28 @@ pub fn proba_init() -> MyResult<ColorGrid, String> {
 }
 
 
-fn proba_update_posterior_local(coefficient: f64) -> Result<ColorGrid, String> {
+fn proba_update_posterior_local(scoreWeight: f64, opportunityCostWeight: f64) -> Result<ColorGrid, String> {
+    *SCORE_WEIGHT.lock().unwrap() = scoreWeight;
+    *OPPORTUNITY_COST_WEIGHT.lock().unwrap() = opportunityCostWeight;
     let mut tauri_state = TAURI_STATE.lock().unwrap();
     let grid = match &mut tauri_state.proba_grid {
         ProbaGridState::Initialized { output } => output,
         _ => return Err("Proba grid is not initialized".to_string()),
     };
-    update_posterior(grid, coefficient)?;
+    update_posterior(grid)?;
     let color_grid = grid.to_color_grid();
     Ok(color_grid)    
 }
 
 #[tauri::command]
-pub fn proba_update_posterior(coefficient: f64) -> MyResult<ColorGrid, String> {
+pub fn proba_update_posterior(scoreWeight: f64, opportunityCostWeight: f64) -> MyResult<ColorGrid, String> {
     if USE_PYTHON_SERVER {
         match call_python_server::<(), ColorGrid>("naive_route", ()) {
             Ok(grid) => MyResult::Ok(grid),
             Err(e) => MyResult::Err(e),
         }
     } else {
-        match proba_update_posterior_local(coefficient) {
+        match proba_update_posterior_local(scoreWeight, opportunityCostWeight) {
             Ok(grid) => MyResult::Ok(grid),
             Err(e) => MyResult::Err(e),
         }
@@ -356,12 +358,14 @@ pub fn proba_next_pair() -> MyResult<ColorGrid, String> {
 
 
 fn proba_sample_local() -> Result<ColorGrid, String> {
-    // let mut tauri_state = TAURI_STATE.lock().unwrap();
-    // let old_grid = tauri_state.grid.clone();
-    // tauri_state.grid = naive_route(old_grid)?;
-    // let color_grid = tauri_state.grid.to_color_grid();
-    // Ok(color_grid)
-    todo!()
+    let mut tauri_state = TAURI_STATE.lock().unwrap();
+    let grid = match &mut tauri_state.proba_grid {
+        ProbaGridState::Initialized { output } => output,
+        _ => return Err("Proba grid is not initialized".to_string()),
+    };
+    sample_new_traces(grid)?;
+    let color_grid = grid.to_color_grid();
+    Ok(color_grid)    
 }
 
 #[tauri::command]
