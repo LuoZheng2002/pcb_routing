@@ -491,6 +491,10 @@ pub fn sample_new_traces(grid: &mut ProbaGrid)-> Result<(), String>{
             .insert(trace_id);
     }
     // update trace collision adjacency
+    *trace_collision_adjacency = traces.iter()
+        .map(|(trace_id, _)| {
+            (trace_id.clone(), HashSet::new())
+        }).collect();
     let net_to_traces: HashMap<NetID, HashMap<TraceID, &TraceInfo>> = net_to_pad_pairs
         .iter()
         .map(|(net_id, pad_pair_ids)| {
@@ -523,13 +527,10 @@ pub fn sample_new_traces(grid: &mut ProbaGrid)-> Result<(), String>{
                 for (trace_id_b, trace_b) in trace_set_b {
                     let collide = trace_a.trace_path.collides_with(&trace_b.trace_path);
                     if collide{
-                        trace_collision_adjacency
-                            .entry(trace_id_a.clone())
-                            .or_default()
+                        trace_collision_adjacency.get_mut(trace_id_a).unwrap()
                             .insert(trace_id_b.clone());
                         trace_collision_adjacency
-                            .entry(trace_id_b.clone())
-                            .or_default()
+                            .get_mut(trace_id_b).unwrap()
                             .insert(trace_id_a.clone());
                     }
                 }
