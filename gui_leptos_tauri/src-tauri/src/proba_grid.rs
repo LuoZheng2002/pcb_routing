@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::{BTreeSet, HashMap, HashSet}, num::NonZero
 
 use shared::interface_types::{Color, ColorGrid};
 
-use crate::{grid::Point, hyperparameters::ITERATION_TO_PRIOR_PROBABILITY};
+use crate::{grid::Point, hyperparameters::{HALF_PROBABILITY_RAW_SCORE, ITERATION_TO_PRIOR_PROBABILITY, LENGTH_PENALTY_RATE, TURN_PENALTY_RATE}, solve_proba_grid::calculate_trace_score};
 
 #[derive(Debug, Clone)]
 pub struct NetInfo{
@@ -31,9 +31,18 @@ pub struct PadPair{
     pub end: Point, // End point of the trace
 }
 
-#[derive(Debug, Clone, PartialEq, Hash, Eq, PartialOrd, Ord)]
-pub struct TracePath(pub BTreeSet<Point>); // A set of points that the trace covers
 
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+pub struct Direction {
+    pub x: i32,
+    pub y: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Hash, Eq, PartialOrd, Ord)]
+pub struct TracePath{
+    pub covered: BTreeSet<Point>, // The points covered by the trace
+    pub diagonal_covered: BTreeSet<Point>, // points in the diagonal
+}
 
 #[derive(Debug, Clone)]
 pub struct TraceInfo{
@@ -43,20 +52,87 @@ pub struct TraceInfo{
     pub start: Point, // Start point of the trace
     pub end: Point, // End point of the trace
     pub trace_path: TracePath, // The path of the trace
+    pub trace_directions: Vec<Direction>, // The directions of the trace
+    pub trace_length: f64, // The length of the trace
     pub iteration: NonZeroUsize, // The iteration that the trace belongs to, starting from 1
     // probability information:
-    pub score: f64, // Score of the trace, between 0 and 1
+    pub prior_probability_cache: RefCell<Option<f64>>, // Prior probability of the trace, between 0 and 1
+    pub score_cache: RefCell<Option<f64>>, // Score of the trace, between 0 and 1
     // pub old_posterior_unnormalized: RefCell<Option<f64>>, // to be accessed in the next iteration
-    pub old_posterior_normalized: RefCell<Option<f64>>, // to be accessed in the next iteration
-    pub new_posterior_unnormalized: RefCell<Option<f64>>, // serve as a buffer for simultaneous updates
+    pub posterior_normalized: RefCell<Option<f64>>, // to be accessed in the next iteration
+    pub temp_posterior_unnormalized: RefCell<Option<f64>>, // serve as a buffer for simultaneous updates
 }
 
 impl TraceInfo{
-    pub fn get_prior_probability(&self)->f64{
+    fn calculate_score(&self)->f64{
+        // calculate turns
+        let mut turns = 0;
+        let mut last_direction = self.trace_directions.first().cloned().unwrap_or(Direction { x: 0, y: 0 });
+        if self.trace_directions.len() > 0{
+            for direction in self.trace_directions.iter().skip(1) {
+                if direction.x != last_direction.x || direction.y != last_direction.y {
+                    turns += 1;
+                }
+                last_direction = direction.clone();
+            }
+        }
+        let score_raw = self.trace_length * LENGTH_PENALTY_RATE + turns as f64 * TURN_PENALTY_RATE;
+        let k = f64::ln(2.0)/ HALF_PROBABILITY_RAW_SCORE;
+        let score = f64::exp(-k * score_raw);
+        assert!(score >= 0.0 && score <= 1.0, "Score must be between 0 and 1, got: {}", score);
+        score
+    }
+    pub fn get_score(&self)->f64{
+        // let mut score_cache = self.score_cache.borrow_mut();
+        // *score_cache.get_or_insert_with(||{
+        //     self.calculate_score()
+        // })
+        // we do not use cache until there is performance issue
+        self.calculate_score()
+    }
+    fn calculate_prior_probability(&self)->f64{
         ITERATION_TO_PRIOR_PROBABILITY.get(&self.iteration)
             .cloned()
             .unwrap_or_else(|| panic!("No prior probability for iteration {:?}", self.iteration))
     }
+    /// this prior probability is not normalized
+    pub fn get_prior_probability(&self)->f64{
+        // let mut prior_probability_cache = self.prior_probability_cache.borrow_mut();
+        // *prior_probability_cache.get_or_insert_with(||{
+        //     self.calculate_prior_probability()
+        // })
+        // we do not use cache until there is performance issue
+        self.calculate_prior_probability()
+    }
+    
+    // pub fn calculate_fallback_posterior_unnormalized(&self, num_traces_in_the_same_iteration: usize)->f64{
+    //     // calculate the posterior probability of the trace
+    //     // this is used when there is no old posterior probability available
+    //     let prior_probability = self.get_prior_probability();
+    //     let normalized_prior_probability = prior_probability / (num_traces_in_the_same_iteration as f64);
+
+    //     let score = self.get_score();
+    //     let posterior_unnormalized = prior_probability * score;
+    //     // we use the number of traces in the same iteration to normalize the posterior probability
+    //     let posterior_normalized = posterior_unnormalized / (num_traces_in_the_same_iteration as f64);
+    //     assert!(posterior_normalized >= 0.0 && posterior_normalized <= 1.0, "Posterior normalized must be between 0 and 1, got: {}", posterior_normalized);
+    //     posterior_normalized
+    // }
+    pub fn get_posterior_normalized_with_fallback(&self, num_traces_in_the_same_iteration: usize)->f64{
+        let posterior_normalized = self.posterior_normalized.borrow();
+        if let Some(old_posterior) = posterior_normalized.as_ref() {
+            *old_posterior
+        } else {            
+            let prior_probability = self.get_prior_probability();
+            let normalized_prior_probability = prior_probability / (num_traces_in_the_same_iteration as f64);
+            normalized_prior_probability
+        }
+    }
+    // call stack: want to sample traces that block the way -> call get_posterior_normalized for other traces
+    // -> use num_traces_in_the_same_iteration to get the normalized prior probability
+    // -> use the normalized prior probability as the normalized posterior probability 
+
+    // want to sample traces -> should already have the posterior_normalized
 }
 
 
@@ -151,12 +227,12 @@ impl ProbaGrid{
                 let trace_ids = self.pad_pair_to_traces.get(pad_pair_id).unwrap();
                 for trace_id in trace_ids {
                     let trace = self.traces.get(trace_id).unwrap();
-                    for point in &trace.trace_path.0 {
+                    for point in &trace.trace_path.covered {
                         let original_color = grid[point.y][point.x].clone();
-                        let opacity: f64 = if let Some(old_posterior) = trace.old_posterior_normalized.borrow().as_ref() {
+                        let opacity: f64 = if let Some(old_posterior) = trace.posterior_normalized.borrow().as_ref() {
                             *old_posterior
                         } else {
-                            trace.get_prior_probability()
+                            trace.calculate_prior_probability()
                         };
                         let new_color = Color {
                             r: (route_color.r as f64 * opacity + original_color.r as f64 * (1.0-opacity)) as u8,

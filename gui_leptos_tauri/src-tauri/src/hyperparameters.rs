@@ -9,6 +9,9 @@ pub const LENGTH_PENALTY_RATE: f64 = 1.0;
 pub const TURN_PENALTY_RATE: f64 = 3.0;
 pub const HALF_PROBABILITY_RAW_SCORE: f64 = 10.0;
 
+pub const SCORE_WEIGHT: f64 = 0.3; // how much score contributes to the final probability
+pub const OPPORTUNITY_COST_WEIGHT: f64 = 0.3; // how much opportunity cost contributes to the final probability
+
 
 lazy_static!{
     pub static ref ITERATION_TO_PRIOR_PROBABILITY: HashMap<NonZeroUsize, f64> = {

@@ -1,26 +1,14 @@
 use std::{cell::RefCell, collections::{BTreeSet, HashMap, HashSet}, num::NonZeroUsize};
 
-use crate::{dijkstra::{DijkstraModel, Direction}, grid::{Point, PointPair}, hyperparameters::{HALF_PROBABILITY_RAW_SCORE, LENGTH_PENALTY_RATE, TURN_PENALTY_RATE}, proba_grid::{NetID, PadPair, PadPairID, ProbaGridProblem, ProbaGrid, TraceInfo, TraceID, TraceProbaInfo}};
+use rand::distr::{weighted::WeightedIndex};
+use rand::prelude::*;
+
+use crate::{dijkstra::{DijkstraModel}, grid::{Point, PointPair}, hyperparameters::{HALF_PROBABILITY_RAW_SCORE, LENGTH_PENALTY_RATE, TURN_PENALTY_RATE}, proba_grid::{NetID, PadPair, PadPairID, ProbaGridProblem, ProbaGrid, TraceInfo, TraceID, TraceProbaInfo}};
 
 
 
 pub fn calculate_trace_score(covered: &BTreeSet<Point>, directions: &Vec<Direction>) -> f64{
-    let total_length = covered.len();
-    let mut turns = 0;
-    let mut last_direction = directions.first().cloned().unwrap_or(Direction { x: 0, y: 0 });
-    if directions.len() > 0{
-        for direction in directions.iter().skip(1) {
-            if direction.x != last_direction.x || direction.y != last_direction.y {
-                turns += 1;
-            }
-            last_direction = direction.clone();
-        }
-    }
-    let score_raw = total_length as f64* LENGTH_PENALTY_RATE + turns as f64 * TURN_PENALTY_RATE;
-    let k = f64::ln(2.0)/ HALF_PROBABILITY_RAW_SCORE;
-    let score = f64::exp(-k * score_raw);
-    assert!(score >= 0.0 && score <= 1.0, "Score must be between 0 and 1, got: {}", score);
-    score
+    
 } 
 
 
@@ -316,39 +304,72 @@ pub fn sample_new_traces(grid: &mut ProbaGrid)-> Result<(), String>{
         let obstacle_traces: HashMap<PadPairID, Option<TraceID>> = net_to_pad_pairs.iter()
             .filter(|(other_net_id, _)| *other_net_id != net_id)
             .flat_map(|(_, pad_pair_ids)| {
-                pad_pair_ids.iter().map(|pad_pair_id| {
+                pad_pair_ids.iter().map::<Result<(PadPairID, Option<TraceID>),String>, _>(|pad_pair_id| {
                     let candidate_trace_ids = pad_pair_to_traces.get(pad_pair_id).unwrap();
+                    let candidate_trace_ids = candidate_trace_ids.iter().cloned().collect::<Vec<_>>();
+
                     let mut sum_probability = 0.0;
+                    let mut probabilities: Vec<f64> = Vec::new();
+                    // get the sum probability and all the probabilities of the candidate traces
                     for candidate_trace_id in candidate_trace_ids.iter(){
                         let candidate_trace = traces.get(candidate_trace_id).unwrap();
-                        
+                        // we need a normalized fallback probability
+                        let posterior_normalized = candidate_trace.posterior_normalized.borrow();
+                        let posterior_normalized = posterior_normalized.as_ref()
+                            .ok_or_else(|| format!("Posterior normalized for trace ID {:?} is None", candidate_trace_id))
+                            .map_err(|e| e)?;
+                        sum_probability += *posterior_normalized;
+                        probabilities.push(*posterior_normalized);
                     }
-                    // candidate traces have traces of iterations from 1
-
-                    // how to make the probability of not choosing any trace to be variable?
-                    // don't make them to be variable
-
-                    // we need the trace's probability
-
-                    let trace_id = TraceID(next_iteration.get() as usize);
-                    (pad_pair_id.clone(), Some(trace_id))
+                    let mut assumed_sum_probability = 0.0;
+                    for iteration in (1..next_iteration.get()).map(|i| NonZeroUsize::new(i).unwrap()) {
+                        let prior_probability = crate::hyperparameters::ITERATION_TO_PRIOR_PROBABILITY
+                            .get(&iteration)
+                            .ok_or_else(|| format!("Iteration {:?} not found in ITERATION_TO_PRIOR_PROBABILITY", iteration))?;
+                        assumed_sum_probability += *prior_probability;
+                    }
+                    assert!(f64::abs(sum_probability - assumed_sum_probability) < 1e-6, 
+                        "Sum of probabilities {} does not match assumed sum probability {}", 
+                        sum_probability, assumed_sum_probability);
+                    probabilities.push(1.0 - sum_probability); // add the probability of not choosing any trace
+                    let dist = WeightedIndex::new(probabilities)
+                        .map_err(|e| format!("Failed to create WeightedIndex: {}", e))?;
+                    let mut rng = rand::rng();
+                    let index = dist.sample(&mut rng);
+                    let chosen_trace_id = if index < candidate_trace_ids.len() {
+                        Some(candidate_trace_ids[index])
+                    } else {
+                        None // No trace chosen
+                    };
+                    Ok((*pad_pair_id, chosen_trace_id))
                 })
             })
-            .collect();
+            .collect::<Result<HashMap<_, _>, _>>()
+            .map_err(|e|e)?;
+        // create a Dijkstra model that contains all the obstacles from other nets
+        // this can be reused for all pad pairs in this net
+        let mut obstacles: HashSet<Point> = HashSet::new();
+        let mut diagonal_obstacles: HashSet<Point> = HashSet::new();
+        for (_, trace_id) in obstacle_traces.iter() {
+            if let Some(trace_id) = trace_id {
+                let trace_info = traces.get(trace_id).ok_or_else(|| format!("Trace ID {:?} not found in traces", trace_id))?;
+                obstacles.extend(trace_info.trace_path.covered.iter().cloned());
+                diagonal_obstacles.extend(trace_info.trace_path.diagonal_covered.iter().cloned());
+            }
+        }
+        let dijkstra_model = DijkstraModel {
+            width: *width,
+            height: *height,
+            obstacles,
+            diagonal_obstacles,
+            start: Point { x: 0, y: 0 }, // Placeholder, will be set for each pad pair
+            end: Point { x: 0, y: 0 }, // Placeholder, will be set for each pad pair
+        };
         for pad_pair_id in pad_pair_ids.iter() {
+            let mut dijkstra_model_copy = dijkstra_model.clone();
             let pad_pair = pad_pairs.get(pad_pair_id).ok_or_else(|| format!("PadPairID {:?} not found in net_to_pad_pairs", pad_pair_id))?;
             // let trace_id = TraceID(next_iteration.get() as usize);
-            let dijkstra_model = DijkstraModel {
-                width: *width,
-                height: *height,
-                obstacles: net_to_pads.iter()
-                    .filter(|(net_id, _)| **net_id != pad_pair.net_id)
-                    .flat_map(|(_, points)| points.iter().cloned())
-                    .collect(),
-                diagonal_obstacles: HashSet::new(), // No diagonal obstacles in the first iteration
-                start: pad_pair.start,
-                end: pad_pair.end,
-            };
+           
         }
     }
     todo!()

@@ -26,3 +26,4 @@ lazy_static = "1.5.0"
 image = "0.25.6"
 shared= {path="../shared"}
 ordered-float = "5.0.0"
+rand = "0.9.1"

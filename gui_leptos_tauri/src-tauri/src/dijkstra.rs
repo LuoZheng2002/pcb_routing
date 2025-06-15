@@ -1,14 +1,8 @@
 use std::{cmp::Ordering, collections::{BTreeSet, BinaryHeap, HashMap, HashSet}};
 
-use crate::grid::Point;
+use crate::{grid::Point, proba_grid::{Direction, TracePath}};
 
-
-#[derive(Debug, Clone, PartialEq, Hash, Eq)]
-pub struct Direction {
-    pub x: i32,
-    pub y: i32,
-}
-
+#[derive(Debug, Clone)]
 pub struct DijkstraModel{
     pub width: usize,
     pub height: usize,
@@ -93,23 +87,36 @@ impl DijkstraModel {
         }
 
         // Reconstruct path
-        let mut path = Vec::new();
+        let mut trace_directions = Vec::new();
+        let mut covered = BTreeSet::new();
+        let mut diagonal_covered = BTreeSet::new();
         let mut current = self.end;
+        covered.insert(current);
         while current != self.start {
             if let Some(&prev_point) = prev.get(&current) {
-                path.push(Direction {
+                let direction = Direction {
                     x: current.x as i32 - prev_point.x as i32,
                     y: current.y as i32 - prev_point.y as i32,
-                });
+                };
+                if direction.x != 0 && direction.y != 0 {
+                    // if the direction is diagonal, we also add the diagonal trace
+                    let diagonal_trace_point = Point {
+                        x: prev_point.x.min(current.x),
+                        y: prev_point.y.min(current.y),
+                    };
+                    diagonal_covered.insert(diagonal_trace_point);
+                }
+                trace_directions.push(direction);
                 current = prev_point;
+                covered.insert(current);
             } else {
                 // No path found
                 return Err("Dijkstra Algorithm Failed: No Path Found".to_string());
             }
         }
-        path.reverse();
+        trace_directions.reverse();
         let mut current = self.start;
-        let covered: BTreeSet<Point> = path.iter().fold(BTreeSet::new(), |mut acc, dir| {
+        let trace_path: BTreeSet<Point> = trace_directions.iter().fold(BTreeSet::new(), |mut acc, dir| {
             current = Point {
                 x: (current.x as i32 + dir.x) as usize,
                 y: (current.y as i32 + dir.y) as usize,
@@ -117,11 +124,15 @@ impl DijkstraModel {
             acc.insert(current);
             acc
         });
+        let trace_path = TracePath { 
+            covered, 
+            diagonal_covered
+        };
         Ok(DijkstraResult {
             start: self.start,
             end: self.end,
-            covered,
-            directions: path,
+            trace_path,
+            trace_directions,
             distance: *dist.get(&self.end).unwrap_or(&f32::INFINITY),
         })
     }
@@ -140,7 +151,7 @@ impl DijkstraModel {
 pub struct DijkstraResult{
     pub start: Point,
     pub end: Point, 
-    pub directions: Vec<Direction>,
-    pub covered: BTreeSet<Point>, // Points in the path
+    pub trace_path: TracePath,
+    pub trace_directions: Vec<Direction>,
     pub distance: f32,
 }

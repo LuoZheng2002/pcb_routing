@@ -77,11 +77,11 @@ pub fn naive_route(mut unrouted_grid: Grid) -> Result<Grid, String> {
         // construct dijkstra model for the current pair of pads
         let dijkstra_model = prepare_dijkstra_model(&grid, &net, point_pair.start(), point_pair.end());
         // run dijkstra's algorithm
-        let DijkstraResult { directions, .. } = dijkstra_model.run()?;
+        let DijkstraResult { trace_directions, .. } = dijkstra_model.run()?;
         // add the route to the grid
         let mut current_point = point_pair.start();
         grid.traces.entry(net.clone()).or_default().insert(current_point);
-        for direction in directions {
+        for direction in trace_directions {
             let last_point = current_point;
             current_point = Point {
                 x: (current_point.x as i32 + direction.x) as usize,
