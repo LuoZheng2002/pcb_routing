@@ -1,0 +1,2 @@
+sq1: square_pad, (-1, -1.5), 6, 45
+rect1: rect_pad, (1, 0), 6, 3, 30
