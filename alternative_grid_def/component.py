@@ -89,3 +89,36 @@ class RectPad(Component):
             rotated.append((cx + x_rot, cy + y_rot))
 
         return rotated
+
+class Wire(Component):
+    def __init__(self, name, start_component, end_component, width, points):
+        super().__init__(name, 'wire', None)
+        self.start_component = start_component
+        self.end_component = end_component
+        self.width = width
+        self.points = points  # List of (x, y)
+
+    def __repr__(self):
+        return f"Wire({self.name}, width={self.width}, points={self.points})"
+
+    def get_segments(self):
+        """
+        將線段轉換為多個寬度為 `width` 的矩形，每段是兩點之間構成。
+        回傳：List of 4-point polygons（corners of rectangles）
+        """
+        rectangles = []
+        half_w = self.width
+        for i in range(len(self.points) - 1):
+            x1, y1 = self.points[i]
+            x2, y2 = self.points[i+1]
+            dx, dy = x2 - x1, y2 - y1
+            length = (dx**2 + dy**2)**0.5
+            # 垂直向量（法線）
+            nx, ny = -dy / length * half_w, dx / length * half_w
+            # 四角點
+            p1 = (x1 + nx, y1 + ny)
+            p2 = (x1 - nx, y1 - ny)
+            p3 = (x2 - nx, y2 - ny)
+            p4 = (x2 + nx, y2 + ny)
+            rectangles.append([p1, p2, p3, p4])
+        return rectangles

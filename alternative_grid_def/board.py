@@ -1,5 +1,5 @@
 import re
-from component import Pad, SquarePad, RectPad
+from component import Pad, SquarePad, RectPad, Wire
 import collision
 
 class good_board:
@@ -58,6 +58,19 @@ class good_board:
                         angle = float(angle_str)
                         self.components[name] = RectPad(name, (x, y), l, w, angle)
 
+                    elif comp_type == 'wire':
+                        match = re.match(r"\s*(\w+)\s*,\s*(\w+)\s*,\s*([-\d.]+)\s*,\s*(.+)", type_and_params[1])
+                        if not match:
+                            raise ValueError("Invalid wire format")
+                        start_comp, end_comp, width_str, points_str = match.groups()
+                        width = float(width_str)
+
+                        # 抓出所有 (x, y)
+                        point_matches = re.findall(r"\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)", points_str)
+                        points = [(float(x), float(y)) for x, y in point_matches]
+
+                        self.components[name] = Wire(name, start_comp, end_comp, width, points)
+
                 except Exception as e:
                     print(f"Failed to parse line: '{line}', error: {e}")
 
@@ -84,4 +97,13 @@ class good_board:
     def print_components(self):
         print("Current components on board:")
         for name, obj in self.components.items():
-            print(f"  {name}: {type(obj).__name__} at {obj.position}")
+            if obj.type == "wire":
+                print(f"  {name}: Wire")
+                print(f"    - from: {obj.start_component}")
+                print(f"    - to:   {obj.end_component}")
+                print(f"    - width: {obj.width}")
+                print(f"    - points:")
+                for pt in obj.points:
+                    print(f"      - {pt}")
+            else:
+                print(f"  {name}: {type(obj).__name__} at {obj.position}")
