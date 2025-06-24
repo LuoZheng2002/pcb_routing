@@ -16,6 +16,9 @@ def main2(str):
     board = good_board(str)
     board.print_components()
 
+    collision = board.check_collision(board.components["wire2"], board.components["wire1"])
+    print("✅ Collision detected!" if collision else "❌ No collision.")
+
 if __name__ == '__main__':
     # main("input.txt") 
     main2("foo2.txt") # <- 測試wire class

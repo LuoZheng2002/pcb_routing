@@ -122,3 +122,7 @@ class Wire(Component):
             p4 = (x2 + nx, y2 + ny)
             rectangles.append([p1, p2, p3, p4])
         return rectangles
+    
+    def get_relay_points(self):
+        return self.points[1:-1]
+        
