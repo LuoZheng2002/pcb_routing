@@ -88,7 +88,7 @@ def collision_with_wire(obj1, obj2):
                 dx = p1[0] - p2[0]
                 dy = p1[1] - p2[1]
                 dist = (dx**2 + dy**2) ** 0.5
-                if dist <= obj1.width / 2 + obj2.width / 2:
+                if dist <= obj1.width / 2 + obj2.width / 2: # 寫 '<=' 因為'等於'也要觸發
                     return True
         
         # cirlce和矩形的碰撞邏輯
@@ -166,7 +166,7 @@ def collision_with_wire(obj1, obj2):
                 axis = (closest[0] - pad_center[0], closest[1] - pad_center[1])
                 proj1 = project_polygon(seg, axis)
                 proj2 = project_circle(pad_center, pad_radius, axis)
-                if not (proj1[1] < proj2[0] or proj2[1] < proj1[0]):
+                if not (proj1[1] < proj2[0] or proj2[1] < proj1[0]): # 只有一條軸確實可以這麼寫!
                     print(f"Collision between pad {obj1.name} and wire segment of {obj2.name}")
                     return True
                 
@@ -177,7 +177,7 @@ def collision_with_wire(obj1, obj2):
             # 所以這邊我們用到的邏輯只會是circle to polygon & polygon to polygon
             pad_polygon = obj1.get_corners()
             # circle (obj2的relay points們) to polygon <- 先寫, 因為較easy
-            for points in relay_points:
+            for point in relay_points:
                 closest = min(pad_polygon, key=lambda p: (p[0] - point[0])**2 + (p[1] - point[1])**2)
                 axis = (closest[0] - point[0], closest[1] - point[1])
                 proj1 = project_polygon(pad_polygon, axis)
@@ -195,6 +195,9 @@ def collision_with_wire(obj1, obj2):
                     if proj1[1] < proj2[0] or proj2[1] < proj1[0]:
                         collide = False
                         break
+
+                # -------- 這條線以上, 測試完一對待測試多邊形的每一個可能分離軸
+                # 如果仍然沒找到! 那就代表實際上有碰撞
                 if collide:
                     print(f"Collision between wire segment of {obj2.name} and pad {obj1.name}")
                     return True
