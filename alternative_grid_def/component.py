@@ -107,7 +107,7 @@ class Wire(Component):
         回傳：List of 4-point polygons（corners of rectangles）
         """
         rectangles = []
-        half_w = self.width
+        half_w = self.width / 2
         for i in range(len(self.points) - 1):
             x1, y1 = self.points[i]
             x2, y2 = self.points[i+1]
