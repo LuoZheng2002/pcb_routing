@@ -14,7 +14,7 @@ def collision_circle_polygon(circle_obj, poly_obj):
     poly = poly_obj
     corners = poly.get_corners()
     # axes = self._get_axes(corners)
-    axes = [] # https://github.com/phenomLi/Blog/issues/23
+    axes = get_axes(corners) # https://github.com/phenomLi/Blog/issues/23
     
     # 加入從圓心指向最近角點的軸 <- 這啥邏輯
     closest = min(corners, key=lambda p: (p[0]-circle.position[0])**2 + (p[1]-circle.position[1])**2)
@@ -53,10 +53,13 @@ def collision_with_wire(obj1, obj2):
         obj1, obj2 = obj2, obj1
 
     if (obj1.name == obj2.start_component or obj1.name == obj2.end_component):
-        print("{} is one of the component that {} is connecting!".format(obj1.name, obj2.name))
+        # print("{} is one of the component that {} is connecting!".format(obj1.name, obj2.name))
         return False
     
     if obj1.type == 'wire' and obj2.type == 'wire':
+        """
+        High-Level邏輯: 在過程中我們有好幾個return True, 如果obj1 & obj2能過pass這些檢測的話 那就代表沒有碰撞
+        """
         wire_segments1 = obj1.get_segments()
         wire_segments2 = obj2.get_segments()
         for seg1 in wire_segments1:
@@ -93,13 +96,14 @@ def collision_with_wire(obj1, obj2):
         
         # cirlce和矩形的碰撞邏輯
         for p1 in relay1:
-            for seg2 in wire_segments2:
-                collide = True
-                axes = []
+            for seg2 in wire_segments2: # seg2 是一個矩形
+            
+                axes = get_axes(seg2)
                 closest = min(seg2, key=lambda p: (p[0]-p1[0])**2 + (p[1]-p1[1])**2)
                 axis_to_circle = (closest[0] - p1[0], closest[1] - p1[1])
                 axes.append(axis_to_circle) 
 
+                collide = True
                 for axis in axes:
                     if collide == False: # 表示找到分離軸了
                         break
@@ -107,19 +111,21 @@ def collision_with_wire(obj1, obj2):
                     proj2 = project_circle(p1, obj1.width / 2, axis)
                     if proj1[1] < proj2[0] or proj2[1] < proj1[0]:
                         collide = False
+                        break
 
+                # 做到這一行代表seg2矩形的每一條分離軸我都測試了, 如果collide仍為True表示有碰撞
                 if collide:
-                    print("Collision between relay point of {} and segment of {} is detected!".format(obj1.name, obj2.name))
-                    return True
+                    return True 
 
         for p2 in relay2:
             for seg1 in wire_segments1:
-                collide = True
-                axes = []
+                
+                axes = get_axes(seg1)
                 closest = min(seg1, key=lambda p: (p[0] - p2[0])**2 + (p[1] - p2[1])**2)
                 axis_to_circle = (closest[0] - p2[0], closest[1] - p2[1])
                 axes.append(axis_to_circle)
 
+                collide = True
                 for axis in axes:
                     if collide == False:
                         break
@@ -127,6 +133,7 @@ def collision_with_wire(obj1, obj2):
                     proj2 = project_circle(p2, obj2.width / 2, axis)
                     if proj1[1] < proj2[0] or proj2[1] < proj1[0]:
                         collide = False
+                        break
                 
                 if collide:
                     print("Collision between relay point of {} and segment of {} is detected!".format(obj2.name, obj1.name))
@@ -142,7 +149,7 @@ def collision_with_wire(obj1, obj2):
         wire_segments = obj2.get_segments()
         relay_points = obj2.get_relay_points()
 
-        if obj1.type == 'Pad':
+        if obj1.type == 'pad':
             # 用到的碰撞邏輯就是circle to circle & circle to polygon
             pad_center = obj1.position
             pad_radius = obj1.radius
@@ -156,18 +163,35 @@ def collision_with_wire(obj1, obj2):
                 dist = (dx ** 2 + dy ** 2) ** 0.5
 
                 if dist <= pad_radius + obj2.width / 2: # obj2.width / 2 是relay_points們的半徑
-                    print(f"Collision between pad {obj1.name} and relay point of wire {obj2.name}")
+                    print(f"Collision between pad : {obj1.name} and relay point of wire {obj2.name}")
                     return True
+            
             
             # circle to polygon
             for seg in wire_segments:
+                # print("pad center is {}".format(pad_center))
+
+                # print("the 4 corners of polygon is {}".format(seg))
+
                 closest = min(seg, key=lambda p: (p[0] - pad_center[0])**2 + (p[1] - pad_center[1])**2)
 
-                axis = (closest[0] - pad_center[0], closest[1] - pad_center[1])
-                proj1 = project_polygon(seg, axis)
-                proj2 = project_circle(pad_center, pad_radius, axis)
-                if not (proj1[1] < proj2[0] or proj2[1] < proj1[0]): # 只有一條軸確實可以這麼寫!
-                    print(f"Collision between pad {obj1.name} and wire segment of {obj2.name}")
+                axes = get_axes(seg)
+
+                # print("pad_center is {}".format(pad_center))
+                edge = (closest[0] - pad_center[0], closest[1] - pad_center[1])
+                axes.append((-edge[1], edge[0]))
+                # print("axes is {}".format(axes))
+
+                collide = True
+                for axis in axes:
+                    proj1 = project_polygon(seg, axis)
+                    proj2 = project_circle(pad_center, pad_radius, axis)
+
+                    if proj1[1] < proj2[0] or proj2[1] < proj1[0]: # 只有一條軸確實可以這麼寫!
+                        collide = False
+                        break
+
+                if collide:
                     return True
                 
             return False
@@ -178,12 +202,20 @@ def collision_with_wire(obj1, obj2):
             pad_polygon = obj1.get_corners()
             # circle (obj2的relay points們) to polygon <- 先寫, 因為較easy
             for point in relay_points:
+                axes = get_axes(pad_polygon)
                 closest = min(pad_polygon, key=lambda p: (p[0] - point[0])**2 + (p[1] - point[1])**2)
-                axis = (closest[0] - point[0], closest[1] - point[1])
-                proj1 = project_polygon(pad_polygon, axis)
-                proj2 = project_circle(point, obj2.width / 2, axis)
-                if not (proj1[1] < proj2[0] or proj2[1] < proj1[0]):
-                    print(f"Collision between relay point of {obj2.name} and pad {obj1.name}")
+                edge = (closest[0] - point[0], closest[1] - point[1])
+                axes.append((-edge[1], edge[0]))
+
+                collide = True
+                for axis in axes:
+
+                    proj1 = project_polygon(pad_polygon, axis)
+                    proj2 = project_circle(point, obj2.width / 2, axis)
+                    if proj1[1] < proj2[0] or proj2[1] < proj1[0]:
+                        collide = False
+                        break
+                if collide:
                     return True
                 
             for seg in wire_segments:
@@ -216,15 +248,18 @@ def get_axes(corners):
     return axes
 # === 工具：投影多邊形 === <- 講白了就是投影
 def project_polygon(corners, axis): 
+    """
+    axis是一個tuple: (x, y)
+    代表一個向量
+    """
+    # Project points onto normalized axis
     dot = lambda p: p[0]*axis[0] + p[1]*axis[1]
     dots = [dot(p) for p in corners]
     return min(dots), max(dots) # <- min(dots) 和 max(dots) 就是這段影子的左右端點
 # === 工具：投影圓形 ===
 def project_circle(center, radius, axis):
-    # 單位向量化
-    length = (axis[0]**2 + axis[1]**2)**0.5
-    norm_axis = (axis[0]/length, axis[1]/length)
-    center_proj = center[0]*norm_axis[0] + center[1]*norm_axis[1]
+    center_proj = center[0] * axis[0] + center[1] * axis[1]
     return center_proj - radius, center_proj + radius
+
 def __str__(self):
     return "\n".join(str(c) for c in self.components.values())
