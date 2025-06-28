@@ -65,13 +65,17 @@ def extract_footprints(content):
 def extract_pads(footprints):
     pads = []
     pattern = r'\(pad\s+"?\d+"?.*?\(at\s+([\d\.-]+)\s+([\d\.-]+)(?:\s+([\d\.-]+))?\).*?\(net\s+(\d)+\s+".*?"\)'
+    is_mirrored = ('(layer "B.Cu")' in footprints["body"])
+    
     for match in re.finditer(pattern, footprints["body"], re.DOTALL):
         xp, yp = float(match.group(1)), float(match.group(2))
         pad_angle = float(match.group(3)) if match.group(3) else 0.0
         net = match.group(4)
-
-        # compute absolute position
-        rotate = math.radians(footprints["rotation"])
+        if is_mirrored:
+            yp = -yp
+            
+        #total_angle = footprints["rotation"] + pad_angle
+        rotate = math.radians(-pad_angle)
         x_abs = footprints["x"] + xp * math.cos(rotate) - yp * math.sin(rotate)
         y_abs = footprints["y"] + xp * math.sin(rotate) + yp * math.cos(rotate)
 
@@ -89,32 +93,6 @@ def extract_vias(content):
         vias.append({"x": x, "y": y, "net": net})
     return vias
 
-'''def extract_segments(content):
-    """提取所有 segment 数据"""
-    segments = []
-    pattern = r'\(segment (.*?)\)'
-    for match in re.finditer(pattern, content, re.DOTALL):
-        seg_block = match.group(1)
-        # 提取起点、终点和网络
-        start_match = re.search(r'\(start ([\d.-]+) ([\d.-]+)', seg_block)
-        end_match = re.search(r'\(end ([\d.-]+) ([\d.-]+)', seg_block)
-        net_match = re.search(r'\(net (\d+) "(.*?)"\)', seg_block)
-        if start_match and end_match:
-            x1, y1 = float(start_match.group(1)), float(start_match.group(2))
-            x2, y2 = float(end_match.group(1)), float(end_match.group(2))
-            net = net_match.group(2) if net_match else None
-            segments.append({
-                "type": "segment",
-                "x1": x1,
-                "y1": y1,
-                "x2": x2,
-                "y2": y2,
-                "net": net
-            })
-    return segments
-'''
-
-
 
 def align_to_grid(x, y, grid_size):
 
@@ -123,11 +101,6 @@ def align_to_grid(x, y, grid_size):
     return x_aligned, y_aligned
 
 def align_pcb_elements(pads, vias, grid_size):
-    '''
-    # 对齐 footprints
-    for fp in footprints:
-        fp["x"], fp["y"] = align_to_grid(fp["x"], fp["y"], grid_size)
-    '''
 
     # align pads
     for pad in pads:
@@ -136,13 +109,7 @@ def align_pcb_elements(pads, vias, grid_size):
     # align vias
     for via in vias:
         via["x"], via["y"] = align_to_grid(via["x"], via["y"], grid_size)
-    
-    '''
-    # 对齐 segments 的起点和终点
-    for seg in segments:
-        seg["x1"], seg["y1"] = align_to_grid(seg["x1"], seg["y1"], grid_size)
-        seg["x2"], seg["y2"] = align_to_grid(seg["x2"], seg["y2"], grid_size)
-    '''
+   
         
     return pads, vias
 
