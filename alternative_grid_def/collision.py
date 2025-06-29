@@ -6,33 +6,59 @@ def collision_circle_circle(c1, c2):
     dy = c1.position[1] - c2.position[1]
     distance = (dx ** 2 + dy ** 2) ** 0.5
     return distance <= c1.radius + c2.radius
+
+
 # === 圓形-多邊形（SAT） ===
 def collision_circle_polygon(circle_obj, poly_obj):
-    if circle_obj.type not in {'pad'}:
-        circle_obj, poly_obj = poly_obj, circle_obj  # swap
+
+    
+    if circle_obj.type not in {'pad'}: # <- 如果circle_obj的type不是'pad', 那就代表順序錯了
+        circle_obj, poly_obj = poly_obj, circle_obj  # <- 順序錯了就要swap
+
     circle = circle_obj
     poly = poly_obj
-    corners = poly.get_corners()
-    # axes = self._get_axes(corners)
+    corners = poly.get_corners() # corners是一個list含有四個tuple, 每一個tuple是一個2D Euclidean Space的點
+
+
+
+
+
+
+
+    # 第一次提取axis, 是從polygon提取axis
     axes = get_axes(corners) # https://github.com/phenomLi/Blog/issues/23
     
-    # 加入從圓心指向最近角點的軸 <- 這啥邏輯
+    # 第二次提取axis, 因為cirlce也會貢獻一個軸
+    # 加入從圓心指向最近角點的軸
     closest = min(corners, key=lambda p: (p[0]-circle.position[0])**2 + (p[1]-circle.position[1])**2)
     axis_to_circle = (closest[0] - circle.position[0], closest[1] - circle.position[1])
     axes.append(axis_to_circle) # <- circle和多邊形只需要測試一條分離軸
     
+
+
+
+
+
+
+
+    # 對於我們準備的那些軸, 一一去投影測試, 如果有任何一條軸可以滿足line 48的條件, 那就代表我們找到分離軸了
     for axis in axes:
         proj1 = project_polygon(corners, axis)
         proj2 = project_circle(circle.position, circle.radius, axis)
         if proj1[1] < proj2[0] or proj2[1] < proj1[0]:
             return False
+    
+
+
+
+    # 每一條分離軸都測試過了, 那沒辦法了圖形的情況可能就是有碰撞
     return True
 # === 多邊形-多邊形 ===
 def collision_polygon_polygon(p1, p2):
     c1 = p1.get_corners()
     c2 = p2.get_corners()
     axes = get_axes(c1) + get_axes(c2) # <- 這個 '+' 是 python list的 '+'
-    for axis in axes:
+    for axis in axes:     
         """
         在一次iteration裡面, axis的值是固定的:
         proj1 = self._project_polygon(c1, axis) <- 把一號多邊形的corner點們都投影到這個軸上面
