@@ -70,6 +70,37 @@ def collision_polygon_polygon(p1, p2):
         if proj1[1] < proj2[0] or proj2[1] < proj1[0]: # 這是啥測試條件?? 如果proj1這個"線段"的終點小於proj2的起點, 代表兩個線段中間有gap阿! 根據S.A.T.兩個物體兩個object必然沒有碰撞
             return False
     return True
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # === 處理 wire ===
 def collision_with_wire(obj1, obj2):
     """
@@ -262,6 +293,40 @@ def collision_with_wire(obj1, obj2):
   
             return False
   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # === 工具：取得邊的法向量 ===
 def get_axes(corners):
     axes = []
