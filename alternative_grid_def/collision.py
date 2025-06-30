@@ -222,29 +222,23 @@ def collision_with_wire(obj1, obj2):
                 if dist <= pad_radius + obj2.width / 2: # obj2.width / 2 是relay_points們的半徑
                     print(f"Collision between pad : {obj1.name} and relay point of wire {obj2.name}")
                     return True
-            
-            
+
             # circle to polygon
             for seg in wire_segments:
-                # print("pad center is {}".format(pad_center))
-
-                # print("the 4 corners of polygon is {}".format(seg))
-
-                closest = min(seg, key=lambda p: (p[0] - pad_center[0])**2 + (p[1] - pad_center[1])**2)
 
                 axes = get_axes(seg)
+                closest = min(seg, key=lambda p: (p[0] - pad_center[0])**2 + (p[1] - pad_center[1])**2)
 
                 # print("pad_center is {}".format(pad_center))
                 edge = (closest[0] - pad_center[0], closest[1] - pad_center[1])
                 axes.append((-edge[1], edge[0]))
-                # print("axes is {}".format(axes))
-
+                
                 collide = True
                 for axis in axes:
                     proj1 = project_polygon(seg, axis)
                     proj2 = project_circle(pad_center, pad_radius, axis)
 
-                    if proj1[1] < proj2[0] or proj2[1] < proj1[0]: # 只有一條軸確實可以這麼寫!
+                    if proj1[1] < proj2[0] or proj2[1] < proj1[0]:
                         collide = False
                         break
 
@@ -325,7 +319,13 @@ def collision_with_wire(obj1, obj2):
 
 
 
-
+# === 工具：向量單位化 ===
+def normalize(v):
+    """回傳單位向量；零向量則原樣返回"""
+    mag = math.hypot(v[0], v[1])
+    if mag == 0:
+        return v
+    return (v[0]/mag, v[1]/mag)
 
 # === 工具：取得邊的法向量 ===
 def get_axes(corners):
@@ -344,12 +344,17 @@ def project_polygon(corners, axis):
     代表一個向量
     """
     # Project points onto normalized axis
-    dot = lambda p: p[0]*axis[0] + p[1]*axis[1]
-    dots = [dot(p) for p in corners]
+    ax = normalize(axis)
+    dot = lambda p: p[0]*ax[0] + p[1]*ax[1] # 這邊定義了一個函數
+    dots = [dot(p) for p in corners] # 對於polygon的每一個點都去計算內積
     return min(dots), max(dots) # <- min(dots) 和 max(dots) 就是這段影子的左右端點
 # === 工具：投影圓形 ===
 def project_circle(center, radius, axis):
-    center_proj = center[0] * axis[0] + center[1] * axis[1]
+    """
+    center: (x, y) <- 是一個點, 不過也可以解釋成從(0, 0)指向圓心的座標向量
+    """
+    ax = normalize(axis) 
+    center_proj = center[0] * ax[0] + center[1] * ax[1]
     return center_proj - radius, center_proj + radius
 
 def __str__(self):

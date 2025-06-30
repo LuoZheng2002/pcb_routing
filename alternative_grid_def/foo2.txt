@@ -2,5 +2,5 @@ pad1: pad, (0, 10), 1.0
 pad2: square_pad, (10, 15), 1.0, 0
 pad3: square_pad, (5, 20), 1.5, 0
 pad4: pad, (5, 0), 1.5
-wire1: wire, pad1, pad2, 0.7, (0, 10), (5, -20), (10, 15)
+wire1: wire, pad1, pad2, 0.7, (0, 10), (0, 4.5), (10, -10), (10, 15)
 wire2: wire, pad3, pad4, 0.7, (5, 20), (5, 0)

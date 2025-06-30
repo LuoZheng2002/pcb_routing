@@ -21,9 +21,11 @@ def collision_detection(board):
     return False # 能做到這代表兩兩檢查都沒有碰撞
         
 def main():
-    myboard = board.good_board('foo.txt')
+    myboard = board.good_board('foo2.txt')
     if not collision_detection(myboard):
         print("Congradulation!!!!! no collisoin!!!!! it's a valid instance of pcb board")
+    else:
+        print("Collision Detected!!!!")
 
 
 if __name__ == '__main__':
