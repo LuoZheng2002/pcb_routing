@@ -1,4 +1,4 @@
-from Astar import a_star_implicit_grid
+from Astar import a_star_implicit_grid, optimize_path
 from grid import Grid, Net, Point, PointPair
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -88,7 +88,7 @@ collision_check_fn = create_pcb_collision_checker(obstacles)
 
 # Define parameters
 start_point = Point(0.5, 0.0)
-goal_point = Point(5.0, 4.5)
+goal_point = Point(4.0, 4.0)
 stride_size = 1.0
 trace_width = 0.1
 
@@ -164,3 +164,30 @@ def visualize_path(start, goal, obstacles, path, trace_width=0.2):
 
 # Run the visualization with your path
 visualize_path(start_point, goal_point, obstacles, path, trace_width)
+
+
+path = [
+    Point(1.0, 0.5),   # P0
+    Point(1.0, 1.5),   # ↑ P1
+    Point(2.0, 2.5),   # ↗ P2
+    Point(3.0, 2.5),   # → P3
+    Point(4.0, 2.5)    # → P4
+]
+optimized = optimize_path(
+    path=path,
+    trace_width=0.1,
+    collision_check_fn=collision_check_fn,
+    stride=1.0,
+    epsilon=1e-6
+)
+
+print("Original path:")
+for p in path:
+    print(f"({p.x:.2f}, {p.y:.2f})")
+
+print("\nOptimized path:")
+for p in optimized:
+    print(f"({p.x:.2f}, {p.y:.2f})")
+
+visualize_path(path[0], path[-1], obstacles, path)
+visualize_path(optimized[0], optimized[-1], obstacles, optimized)

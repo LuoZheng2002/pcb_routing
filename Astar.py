@@ -3,6 +3,8 @@ import heapq
 import math
 from typing import List, Optional, Callable
 from dataclasses import dataclass
+from typing import Tuple
+import numpy as np
 
 @dataclass
 class Direction:
@@ -10,7 +12,6 @@ class Direction:
     y: float
 
 def octile_distance(a: Point, b: Point) -> float:
-    """Octile distance heuristic for 8-direction movement."""
     dx = abs(a.x - b.x)
     dy = abs(a.y - b.y)
     return max(dx, dy) + (math.sqrt(2) - 1) * min(dx, dy)
@@ -52,6 +53,89 @@ def get_standard_direction(dx: float, dy: float) -> Direction:
     closest_angle = min(std_angles, key=lambda a: abs(a - angle))
     return Direction(math.cos(closest_angle), math.sin(closest_angle))
 
+def optimize_path(path: List[Point], 
+                             trace_width: float,
+                             collision_check_fn: Callable[[Point, Point, float], bool],
+                             stride: float, epsilon) -> List[Point]:
+
+    if len(path) < 4:
+        return path
+    
+    optimized = path.copy()
+    i = 0
+    while i < len(optimized) - 3:
+        seg1 = (optimized[i], optimized[i+1])   
+        seg2 = (optimized[i+2], optimized[i+3])
+        
+
+        dx1 = seg1[1].x - seg1[0].x
+        dy1 = seg1[1].y - seg1[0].y
+        dx2 = seg2[1].x - seg2[0].x
+        dy2 = seg2[1].y - seg2[0].y
+        
+        if (abs(dx1 - dx2) < epsilon and abs(dy1 - dy2) < epsilon):
+            success = False
+            new_point1 = Point(seg1[0].x + seg2[0].x - seg1[1].x, seg1[0].y + seg2[0].y - seg1[1].y)
+            new_point2 = Point(seg2[1].x - seg2[0].x + seg1[1].x, seg2[1].y - seg2[0].y + seg1[1].y)
+            flag1 = is_collision_free(optimized[i], new_point1, trace_width, collision_check_fn) and \
+                is_collision_free(new_point1, optimized[i+2], trace_width, collision_check_fn)
+            flag2 = is_collision_free(optimized[i+1], new_point2, trace_width, collision_check_fn) and \
+                is_collision_free(new_point2, optimized[i+3], trace_width, collision_check_fn)
+
+            if (flag1):
+                optimized[i+1] = new_point1
+                success = True
+            elif (flag2): 
+                optimized[i+2] = new_point2
+                success = True
+            
+            if success:
+                i += 3  
+                continue
+        i += 1
+
+    i = 1
+    while i < len(optimized) - 2:
+        p0 = optimized[i - 1]
+        p1 = optimized[i]
+        p2 = optimized[i + 1]
+        p3 = optimized[i + 2]
+
+        d01 = (p0.x - p1.x, p0.y - p1.y)
+        d12 = (p2.x - p1.x, p2.y - p1.y)
+        d23 = (p3.x - p2.x, p3.y - p2.y)
+
+        if is_axis(d01) and is_diagonal(d12) and is_axis(d23) and (d01[0] == 0 or d23[0] == 0) :
+
+            for step in np.arange(1.0, 0, -0.1):
+                new_point1 = Point(
+                    p1.x + d01[0] * step * stride,
+                    p1.y + d01[1] * step * stride
+                )
+                new_point2 = Point(
+                    p2.x + d23[0] * step * stride,
+                    p2.y + d23[1] * step * stride
+                )
+
+                if (is_collision_free(p0, new_point1, trace_width, collision_check_fn) and
+                    is_collision_free(new_point1, new_point2, trace_width, collision_check_fn) and 
+                    is_collision_free(new_point2, p3, trace_width, collision_check_fn)):
+                    optimized[i] = new_point1
+                    optimized[i + 1] = new_point2
+                    break
+        i += 1
+    
+    return optimized
+
+def is_axis(d: Tuple[float, float]) -> bool:
+    return (abs(d[0]) < 1e-6 and abs(d[1]) > 1e-6) or \
+           (abs(d[1]) < 1e-6 and abs(d[0]) > 1e-6)
+
+def is_diagonal(d: Tuple[float, float]) -> bool:
+    return abs(abs(d[0]) - abs(d[1])) < 1e-6 and abs(d[0]) > 0 and abs(d[1]) > 0
+
+
+
 def a_star_implicit_grid(
     start: Point,
     goal: Point,
@@ -73,7 +157,7 @@ def a_star_implicit_grid(
     g_score = {start: 0.0}
     f_score = {start: octile_distance(start, goal)}
     open_set_hash = {start}
-    EPSILON = stride * 0.1
+    EPSILON = 1e-6
 
     # Standard directions for 8-way movement
     std_directions = [
@@ -149,7 +233,9 @@ def a_star_implicit_grid(
                             )
                             aligned_path[-1] = intermediate
                             aligned_path.append(goal)
-            
+                # if len(aligned_path) >= 4:  # long enough for optimization
+                #     optimized_path = optimize_path(aligned_path, trace_width, collision_check_fn, stride,EPSILON)
+                #     return optimized_path
             return aligned_path
 
         # Generate standard direction neighbors
