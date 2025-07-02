@@ -1,8 +1,8 @@
+from grid import Point
 import heapq
 import math
-from typing import List, Tuple, Optional, Callable
-from grid import Grid, Net, Point, PointPair
-from dataclasses import dataclass, field
+from typing import List, Optional, Callable
+from dataclasses import dataclass
 
 @dataclass
 class Direction:
@@ -15,37 +15,12 @@ def octile_distance(a: Point, b: Point) -> float:
     dy = abs(a.y - b.y)
     return max(dx, dy) + (math.sqrt(2) - 1) * min(dx, dy)
 
-def get_neighbors(
-    point: Point,
-    stride: float,
-    goal: Point,
-    goal_aligned: bool
-) -> List[Point]:
-    """Get 8 neighboring points that are stride-aligned."""
-    neighbors = []
-    
-    # Generate all 8 directions
-    for dx in [-stride, 0, stride]:
-        for dy in [-stride, 0, stride]:
-            if dx == 0 and dy == 0:
-                continue 
-            new_x = point.x + dx
-            new_y = point.y + dy
-            neighbors.append(Point(new_x, new_y))
-    
-    # Add goal if it's not aligned to ensure we can reach it
-    if not goal_aligned and goal not in neighbors:
-        neighbors.append(goal)
-    
-    return neighbors
-
 def is_collision_free(
     start: Point,
     end: Point,
     width: float,
     collision_check_fn: Callable[[Point, Point, float], bool]
 ) -> bool:
-    """Check if a capsule-shaped trace between points is collision-free."""
     return not collision_check_fn(start, end, width)
 
 def binary_search_max_length(
@@ -54,25 +29,28 @@ def binary_search_max_length(
     max_length: float,
     width: float,
     collision_check_fn: Callable[[Point, Point, float], bool],
-    EPSILON: float
+    epsilon: float
 ) -> float:
-    """Find maximum length in given direction that's collision-free."""
-    low = 0.0
-    high = max_length
-    best_length = 0.0
-    for _ in range(20):  # limit iterations
+    low, high = 0.0, max_length
+    best = 0.0
+    for _ in range(20):
         mid = (low + high) / 2
         end = Point(start.x + direction.x * mid, start.y + direction.y * mid)
         if is_collision_free(start, end, width, collision_check_fn):
-            best_length = math.hypot(direction.x * mid, direction.y * mid)
+            best = mid
             low = mid
         else:
             high = mid
-        
-        if high - low < EPSILON:
+        if high - low < epsilon:
             break
-    
-    return best_length
+    return best
+
+def get_standard_direction(dx: float, dy: float) -> Direction:
+    angle = math.atan2(dy, dx)
+    std_angles = [0, math.pi/4, math.pi/2, 3*math.pi/4,
+                 math.pi, 5*math.pi/4, 3*math.pi/2, 7*math.pi/4]
+    closest_angle = min(std_angles, key=lambda a: abs(a - angle))
+    return Direction(math.cos(closest_angle), math.sin(closest_angle))
 
 def a_star_implicit_grid(
     start: Point,
@@ -82,11 +60,12 @@ def a_star_implicit_grid(
     collision_check_fn: Callable[[Point, Point, float], bool],
     max_expansion_length: float = float('inf')
 ) -> Optional[List[Point]]:
-    """A* algorithm for implicit grid with capsule-shaped traces."""
-    # Check if start or goal are in collision
-    if collision_check_fn(start, start, trace_width) or collision_check_fn(goal, goal, trace_width):
+    # Initial checks
+    if collision_check_fn(start, start, trace_width) or \
+       collision_check_fn(goal, goal, trace_width):
         return None
-    
+
+    # Initialize
     open_set = []
     heapq.heappush(open_set, (octile_distance(start, goal), start))
     
@@ -94,105 +73,120 @@ def a_star_implicit_grid(
     g_score = {start: 0.0}
     f_score = {start: octile_distance(start, goal)}
     open_set_hash = {start}
-    
-    # Floating point comparison tolerance
     EPSILON = stride * 0.1
-    
+
+    # Standard directions for 8-way movement
+    std_directions = [
+        Direction(1, 0), Direction(-1, 0), Direction(0, 1), Direction(0, -1),
+        Direction(1, 1), Direction(1, -1), Direction(-1, 1), Direction(-1, -1)
+    ]
+
     while open_set:
         current = heapq.heappop(open_set)[1]
         open_set_hash.remove(current)
-        
-        # Check if we've reached the goal (with floating point tolerance)
+
+        # Check if reached goal
         if math.hypot(current.x - goal.x, current.y - goal.y) < EPSILON:
+            # Reconstruct path with 8-direction constraints
             path = [current]
             while current in came_from:
                 current = came_from[current]
                 path.append(current)
             path.reverse()
-            
-            # Ensure the last step is aligned to one of 8 directions
-            if len(path) >= 2:
-                last_point = path[-1]
-                second_last_point = path[-2]
-                dx = last_point.x - second_last_point.x
-                dy = last_point.y - second_last_point.y
+
+            # Process path segments to enforce 8-direction movement
+            aligned_path = [path[0]]
+            for i in range(1, len(path)):
+                prev = aligned_path[-1]
+                curr = path[i]
+
+                dx = curr.x - prev.x
+                dy = curr.y - prev.y
                 dist = math.hypot(dx, dy)
-                
-                # If the last step is not aligned to 8 directions, insert an intermediate point
-                if dist > EPSILON:
-                    direction_x = dx / dist
-                    direction_y = dy / dist
-                    
-                    # Find the closest aligned direction
-                    angles = [0, math.pi/4, math.pi/2, 3*math.pi/4, math.pi, 
-                             5*math.pi/4, 3*math.pi/2, 7*math.pi/4]
-                    current_angle = math.atan2(dy, dx)
-                    closest_angle = min(angles, key=lambda x: abs(x - current_angle))
-                    
-                    # Calculate the aligned direction
-                    aligned_dx = math.cos(closest_angle)
-                    aligned_dy = math.sin(closest_angle)
-                    
-                    # Insert an intermediate point
-                    intermediate_point = Point(
-                        second_last_point.x + aligned_dx * dist,
-                        second_last_point.y + aligned_dy * dist
-                    )
-                    
-                    # Replace the last point with the intermediate point and the goal
-                    path[-1] = intermediate_point
-                    path.append(goal)
-            
-            return path
-        
-        # Alignment check
-        def is_aligned(p):
-            return (round(p.x / stride) * stride == p.x) and \
-                   (round(p.y / stride) * stride == p.y)
-        
-        current_aligned = is_aligned(current)
-        goal_aligned = is_aligned(goal)
-        
-        neighbors = get_neighbors(current, stride, goal, goal_aligned)
-        
-        for neighbor in neighbors:
-            dx = neighbor.x - current.x
-            dy = neighbor.y - current.y
-            dist = math.hypot(dx, dy)
-            
-            if dist < EPSILON:
-                continue
-                
-            direction = Direction(dx/dist, dy/dist)
-            
-            if is_collision_free(current, neighbor, trace_width, collision_check_fn):
-                tentative_g_score = g_score[current] + dist
-                actual_end = neighbor
-            else:
-                max_length = min(dist, max_expansion_length)
-                actual_length = binary_search_max_length(
-                    current, direction, max_length, trace_width, collision_check_fn, EPSILON
-                )
-                
-                if actual_length < EPSILON:  # Minimum meaningful expansion
+
+                if dist < EPSILON:
                     continue
-                
-                actual_end = Point(
-                    current.x + direction.x * actual_length,
-                    current.y + direction.y * actual_length
+
+                # Get standard direction
+                direction = get_standard_direction(dx, dy)
+                moved_dist = dx * direction.x + dy * direction.y  # Projection
+
+                # Find maximum safe length
+                safe_len = binary_search_max_length(
+                    prev, direction, moved_dist, trace_width, collision_check_fn, EPSILON
                 )
-                tentative_g_score = g_score[current] + actual_length
+
+                if safe_len < EPSILON:
+                    continue  # Skip unreachable points
+
+                new_point = Point(
+                    prev.x + direction.x * safe_len,
+                    prev.y + direction.y * safe_len
+                )
+                aligned_path.append(new_point)
+
+            # Ensure final point reaches goal
+            if len(aligned_path) >= 2:
+                last_seg_start = aligned_path[-2]
+                if not math.isclose(aligned_path[-1].x, goal.x, abs_tol=EPSILON) or \
+                   not math.isclose(aligned_path[-1].y, goal.y, abs_tol=EPSILON):
+                    # Add final segment to goal if possible
+                    if is_collision_free(last_seg_start, goal, trace_width, collision_check_fn):
+                        aligned_path[-1] = goal
+                    else:
+                        # Find intermediate point
+                        dx = goal.x - last_seg_start.x
+                        dy = goal.y - last_seg_start.y
+                        direction = get_standard_direction(dx, dy)
+                        max_len = math.hypot(dx, dy)
+                        safe_len = binary_search_max_length(
+                            last_seg_start, direction, max_len, trace_width, collision_check_fn, EPSILON
+                        )
+                        if safe_len > EPSILON:
+                            intermediate = Point(
+                                last_seg_start.x + direction.x * safe_len,
+                                last_seg_start.y + direction.y * safe_len
+                            )
+                            aligned_path[-1] = intermediate
+                            aligned_path.append(goal)
             
-            # Check if reach the goal
-            if math.hypot(actual_end.x - goal.x, actual_end.y - goal.y) < EPSILON:
-                actual_end = goal
+            return aligned_path
+
+        # Generate standard direction neighbors
+        for direction in std_directions:
+            neighbor = Point(
+                current.x + direction.x * stride,
+                current.y + direction.y * stride
+            )
+
+            # Skip if beyond max expansion length
+            dist = math.hypot(direction.x * stride, direction.y * stride)
+            if dist > max_expansion_length:
+                continue
+
+            # Collision check
+            if not is_collision_free(current, neighbor, trace_width, collision_check_fn):
+                # Try to find maximum safe length
+                safe_len = binary_search_max_length(
+                    current, direction, stride, trace_width, collision_check_fn, EPSILON
+                )
+                if safe_len < EPSILON:
+                    continue
+                neighbor = Point(
+                    current.x + direction.x * safe_len,
+                    current.y + direction.y * safe_len
+                )
+
+            # Update scores
+            tentative_g = g_score[current] + math.hypot(
+                neighbor.x - current.x, neighbor.y - current.y)
             
-            if actual_end not in g_score or tentative_g_score < g_score[actual_end]:
-                came_from[actual_end] = current
-                g_score[actual_end] = tentative_g_score
-                f_score[actual_end] = tentative_g_score + octile_distance(actual_end, goal)
-                if actual_end not in open_set_hash:
-                    heapq.heappush(open_set, (f_score[actual_end], actual_end))
-                    open_set_hash.add(actual_end)
-    
+            if neighbor not in g_score or tentative_g < g_score[neighbor]:
+                came_from[neighbor] = current
+                g_score[neighbor] = tentative_g
+                f_score[neighbor] = tentative_g + octile_distance(neighbor, goal)
+                if neighbor not in open_set_hash:
+                    heapq.heappush(open_set, (f_score[neighbor], neighbor))
+                    open_set_hash.add(neighbor)
+
     return None
