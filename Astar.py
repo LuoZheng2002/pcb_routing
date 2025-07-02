@@ -102,14 +102,49 @@ def a_star_implicit_grid(
         current = heapq.heappop(open_set)[1]
         open_set_hash.remove(current)
         
-        if current == goal:
+        # Check if we've reached the goal (with floating point tolerance)
+        if math.hypot(current.x - goal.x, current.y - goal.y) < EPSILON:
             path = [current]
             while current in came_from:
                 current = came_from[current]
                 path.append(current)
             path.reverse()
+            
+            # Ensure the last step is aligned to one of 8 directions
+            if len(path) >= 2:
+                last_point = path[-1]
+                second_last_point = path[-2]
+                dx = last_point.x - second_last_point.x
+                dy = last_point.y - second_last_point.y
+                dist = math.hypot(dx, dy)
+                
+                # If the last step is not aligned to 8 directions, insert an intermediate point
+                if dist > EPSILON:
+                    direction_x = dx / dist
+                    direction_y = dy / dist
+                    
+                    # Find the closest aligned direction
+                    angles = [0, math.pi/4, math.pi/2, 3*math.pi/4, math.pi, 
+                             5*math.pi/4, 3*math.pi/2, 7*math.pi/4]
+                    current_angle = math.atan2(dy, dx)
+                    closest_angle = min(angles, key=lambda x: abs(x - current_angle))
+                    
+                    # Calculate the aligned direction
+                    aligned_dx = math.cos(closest_angle)
+                    aligned_dy = math.sin(closest_angle)
+                    
+                    # Insert an intermediate point
+                    intermediate_point = Point(
+                        second_last_point.x + aligned_dx * dist,
+                        second_last_point.y + aligned_dy * dist
+                    )
+                    
+                    # Replace the last point with the intermediate point and the goal
+                    path[-1] = intermediate_point
+                    path.append(goal)
+            
             return path
-
+        
         # Alignment check
         def is_aligned(p):
             return (round(p.x / stride) * stride == p.x) and \

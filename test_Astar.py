@@ -1,5 +1,9 @@
 from Astar import a_star_implicit_grid
 from grid import Grid, Net, Point, PointPair
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from matplotlib.collections import LineCollection
+
 
 def line_rect_intersection(line_start, line_end, rect_min, rect_max):
     """Check if line segment intersects with rectangle."""
@@ -84,9 +88,9 @@ collision_check_fn = create_pcb_collision_checker(obstacles)
 
 # Define parameters
 start_point = Point(0.5, 0.0)
-goal_point = Point(5.0, 5.0)
+goal_point = Point(5.0, 4.5)
 stride_size = 1.0
-trace_width = 0.2
+trace_width = 0.1
 
 # Find path
 path = a_star_implicit_grid(
@@ -99,36 +103,64 @@ path = a_star_implicit_grid(
 
 print("Found path:", path)
 
-# Visualize the path (simple ASCII representation)
-def visualize_path(start, goal, obstacles, path, stride=1.0):
-    grid_size = 6
-    grid = [['.' for _ in range(grid_size)] for _ in range(grid_size)]
+def visualize_path(start, goal, obstacles, path, trace_width=0.2):
+    """Visualize the path with obstacles on real coordinate axes using matplotlib."""
+    fig, ax = plt.subplots(figsize=(10, 10))
     
-    # Mark obstacles
+    # Set axis limits with some padding
+    all_x = [p.x for p in path] + [start.x, goal.x]
+    all_y = [p.y for p in path] + [start.y, goal.y]
+    ax.set_xlim(min(all_x) - 1, max(all_x) + 1)
+    ax.set_ylim(min(all_y) - 1, max(all_y) + 1)
+    ax.set_aspect('equal')
+    ax.grid(True, which='both', linestyle='--', alpha=0.7)
+    
+    # Draw obstacles (as rectangles)
     for (x1, y1), (x2, y2) in obstacles:
-        for x in range(int(x1), int(x2)+1):
-            for y in range(int(y1), int(y2)+1):
-                if 0 <= x < grid_size and 0 <= y < grid_size:
-                    grid[y][x] = 'X'
+        width = x2 - x1
+        height = y2 - y1
+        rect = patches.Rectangle(
+            (x1, y1), width, height,
+            linewidth=1, edgecolor='r', facecolor='red', alpha=0.5
+        )
+        ax.add_patch(rect)
     
-    # Mark path
+    # Draw the path (as a thick line with rounded ends)
     if path:
-        for point in path:
-            ix, iy = int(round(point.x)), int(round(point.y))
-            if 0 <= ix < grid_size and 0 <= iy < grid_size:
-                if grid[iy][ix] == '.':
-                    grid[iy][ix] = '*'
+        # Convert Point objects to coordinate arrays
+        segments = []
+        for i in range(len(path)-1):
+            segments.append([
+                [path[i].x, path[i].y],
+                [path[i+1].x, path[i+1].y]
+            ])
+        
+        lc = LineCollection(
+            segments,
+            linewidths=trace_width*10,  # Scale for visibility
+            colors='blue',
+            capstyle='round',
+            joinstyle='round',
+            alpha=0.8
+        )
+        ax.add_collection(lc)
+        
+        # Add points at each path node
+        path_x = [p.x for p in path]
+        path_y = [p.y for p in path]
+        ax.scatter(path_x, path_y, color='blue', s=20, zorder=3)
     
-    # Mark start and goal
-    sx, sy = int(round(start.x)), int(round(start.y))
-    gx, gy = int(round(goal.x)), int(round(goal.y))
-    if 0 <= sx < grid_size and 0 <= sy < grid_size:
-        grid[sy][sx] = 'S'
-    if 0 <= gx < grid_size and 0 <= gy < grid_size:
-        grid[gy][gx] = 'G'
+    # Mark start and goal points
+    ax.scatter([start.x], [start.y], color='green', s=100, label='Start', zorder=4)
+    ax.scatter([goal.x], [goal.y], color='purple', s=100, label='Goal', zorder=4)
     
-    # Print grid
-    for row in reversed(grid):
-        print(' '.join(row))
+    # Add labels and legend
+    ax.set_xlabel('X coordinate (inches)')
+    ax.set_ylabel('Y coordinate (inches)')
+    ax.set_title('PCB Routing Path with Obstacles')
+    ax.legend()
+    
+    plt.show()
 
-visualize_path(start_point, goal_point, obstacles, path, stride_size)
+# Run the visualization with your path
+visualize_path(start_point, goal_point, obstacles, path, trace_width)
