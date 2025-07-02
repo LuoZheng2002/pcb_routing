@@ -3,12 +3,12 @@ use std::{net::TcpStream, sync::Mutex};
 pub mod commands;
 pub mod dijkstra;
 pub mod grid;
+pub mod hyperparameters;
 pub mod naive_route;
 pub mod prim_mst;
-pub mod tauri_state;
 pub mod proba_grid;
 pub mod solve_proba_grid;
-pub mod hyperparameters;
+pub mod tauri_state;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use lazy_static::lazy_static;

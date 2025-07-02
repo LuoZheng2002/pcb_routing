@@ -3,15 +3,15 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use shared::interface_types::{Color, ColorGrid};
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq, PartialOrd, Ord)]
-pub enum Net{
-    Character{
+pub enum Net {
+    Character {
         pad_c: char,
         route_c: char,
     },
-    Color{
+    Color {
         pad_color: Color,
         route_color: Color,
-    }
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq, Copy, PartialOrd, Ord)]
@@ -25,13 +25,18 @@ pub struct PointPair {
     end: Point,
 }
 
-impl PointPair{
+impl PointPair {
     pub fn new(point1: Point, point2: Point) -> Self {
-        if point1 < point2{
-            PointPair { start: point1, end: point2 }
-        }
-        else{
-            PointPair { start: point2, end: point1 }
+        if point1 < point2 {
+            PointPair {
+                start: point1,
+                end: point2,
+            }
+        } else {
+            PointPair {
+                start: point2,
+                end: point1,
+            }
         }
     }
     pub fn start(&self) -> Point {
@@ -42,7 +47,6 @@ impl PointPair{
     }
 }
 
-
 // #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 // pub struct Pad{
 //     pub net: Net,
@@ -50,7 +54,7 @@ impl PointPair{
 // }
 
 #[derive(Debug, Clone)]
-pub struct Grid{
+pub struct Grid {
     pub pads: HashMap<Net, BTreeSet<Point>>,
     pub traces: HashMap<Net, HashSet<Point>>,
     pub diagonal_traces: HashMap<Net, HashSet<Point>>, // the point is at the top left corner of the diagonal trace
@@ -58,7 +62,7 @@ pub struct Grid{
     pub height: usize,
 }
 
-impl Grid{
+impl Grid {
     pub fn new(width: usize, height: usize) -> Self {
         Grid {
             pads: HashMap::new(),
@@ -69,27 +73,30 @@ impl Grid{
         }
     }
     pub fn pads_except(&self, net: &Net) -> HashSet<Point> {
-        self.pads.iter()
+        self.pads
+            .iter()
             .filter(|(n, _)| **n != *net)
             .flat_map(|(_, points)| points.iter())
             .cloned()
             .collect()
     }
     pub fn routes_except(&self, net: &Net) -> HashSet<Point> {
-        self.traces.iter()
+        self.traces
+            .iter()
             .filter(|(n, _)| **n != *net)
             .flat_map(|(_, points)| points.iter())
             .cloned()
             .collect()
     }
     pub fn diagonal_routes_except(&self, net: &Net) -> HashSet<Point> {
-        self.diagonal_traces.iter()
+        self.diagonal_traces
+            .iter()
             .filter(|(n, _)| **n != *net)
             .flat_map(|(_, points)| points.iter())
             .cloned()
             .collect()
     }
-    fn to_char_matrix(&self) -> Vec<Vec<char>>{
+    fn to_char_matrix(&self) -> Vec<Vec<char>> {
         let width = self.width;
         let height = self.height;
         let mut grid_string: Vec<Vec<char>> = vec![vec![' '; width as usize]; height as usize];
@@ -100,9 +107,9 @@ impl Grid{
                     assert!(point.x < width && point.y < height, "Point out of bounds");
                     grid_string[point.y as usize][point.x as usize] = *net_char;
                 }
-            }else{
+            } else {
                 panic!("Unsupported Net type for pads: {:?}", net);
-            }            
+            }
         }
         for (net, points) in &self.traces {
             if let Net::Character { pad_c, route_c } = net {
@@ -111,7 +118,7 @@ impl Grid{
                     assert!(point.x < width && point.y < height, "Point out of bounds");
                     grid_string[point.y as usize][point.x as usize] = *route_char;
                 }
-            }else{
+            } else {
                 panic!("Unsupported Net type for traces: {:?}", net);
             }
         }
@@ -151,7 +158,10 @@ impl Grid{
         let mut lines = s.lines().collect::<Vec<&str>>();
         let first_line = lines[0];
         let width = first_line.len() as usize - 2; // subtract 2 for the walls
-        assert!(lines.len() >= 3, "Grid must have at least 3 lines (top wall, bottom wall, and one row of data)");
+        assert!(
+            lines.len() >= 3,
+            "Grid must have at least 3 lines (top wall, bottom wall, and one row of data)"
+        );
         lines.pop(); // remove the last line (bottom wall)
         lines.remove(0); // remove the first line (top wall)
         let height = lines.len() as usize;
@@ -159,8 +169,14 @@ impl Grid{
         for (y, line) in lines.iter().enumerate() {
             for (x, c) in line.chars().enumerate() {
                 if c != ' ' && c != '#' {
-                    let point = Point { x: x as usize - 1, y: y as usize };
-                    let net = Net::Character{ pad_c: c, route_c: c.to_ascii_lowercase() }; // assuming pad and route characters are the same
+                    let point = Point {
+                        x: x as usize - 1,
+                        y: y as usize,
+                    };
+                    let net = Net::Character {
+                        pad_c: c,
+                        route_c: c.to_ascii_lowercase(),
+                    }; // assuming pad and route characters are the same
                     pads.entry(net).or_default().insert(point);
                 }
             }
@@ -173,9 +189,10 @@ impl Grid{
             height,
         }
     }
-    pub fn remove_pad(&mut self, point: Point){
+    pub fn remove_pad(&mut self, point: Point) {
         let prev_pads = std::mem::take(&mut self.pads);
-        self.pads = prev_pads.into_iter()
+        self.pads = prev_pads
+            .into_iter()
             .filter_map(|(net, points)| {
                 let mut new_points = points.clone();
                 new_points.remove(&point);
@@ -191,11 +208,28 @@ impl Grid{
         self.pads.entry(net).or_default().insert(point);
     }
     pub fn to_color_grid(&self) -> ColorGrid {
-        let mut color_grid = vec![vec![Color { r: 255, g: 255, b: 255 }; self.width]; self.height];
+        let mut color_grid = vec![
+            vec![
+                Color {
+                    r: 255,
+                    g: 255,
+                    b: 255
+                };
+                self.width
+            ];
+            self.height
+        ];
         for (net, points) in &self.pads {
-            if let Net::Color { pad_color, route_color: _ } = net {
+            if let Net::Color {
+                pad_color,
+                route_color: _,
+            } = net
+            {
                 for point in points {
-                    assert!(point.x < self.width && point.y < self.height, "Point out of bounds");
+                    assert!(
+                        point.x < self.width && point.y < self.height,
+                        "Point out of bounds"
+                    );
                     color_grid[point.y][point.x] = pad_color.clone();
                 }
             } else {
@@ -203,9 +237,16 @@ impl Grid{
             }
         }
         for (net, points) in &self.traces {
-            if let Net::Color { pad_color: _, route_color } = net {
+            if let Net::Color {
+                pad_color: _,
+                route_color,
+            } = net
+            {
                 for point in points {
-                    assert!(point.x < self.width && point.y < self.height, "Point out of bounds");
+                    assert!(
+                        point.x < self.width && point.y < self.height,
+                        "Point out of bounds"
+                    );
                     color_grid[point.y][point.x] = route_color.clone();
                 }
             } else {
@@ -215,4 +256,3 @@ impl Grid{
         ColorGrid { grid: color_grid }
     }
 }
-

@@ -1,14 +1,19 @@
-use std::{cmp::Reverse, collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap}};
+use std::{
+    cmp::Reverse,
+    collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap},
+};
 
 use ordered_float::OrderedFloat;
 
 use crate::grid::{Net, Point, PointPair};
 
-
-
-
-pub fn prim_mst(edges: Vec<(OrderedFloat<f64>, Net, PointPair)>) -> Vec<(OrderedFloat<f64>, Net, PointPair)> {
-    assert!(edges.len() >=1, "At least 1 edge is required to form a minimum spanning tree.");
+pub fn prim_mst(
+    edges: Vec<(OrderedFloat<f64>, Net, PointPair)>,
+) -> Vec<(OrderedFloat<f64>, Net, PointPair)> {
+    assert!(
+        edges.len() >= 1,
+        "At least 1 edge is required to form a minimum spanning tree."
+    );
     let (_, net, _) = edges[0].clone();
     let mut index_to_point: BTreeSet<Point> = BTreeSet::new();
     for (_, _net, point_pair) in &edges {
@@ -21,7 +26,8 @@ pub fn prim_mst(edges: Vec<(OrderedFloat<f64>, Net, PointPair)>) -> Vec<(Ordered
         .enumerate()
         .map(|(i, point)| (*point, i as i32))
         .collect();
-    let edges: Vec<(OrderedFloat<f64>, Net, i32, i32)> = edges.into_iter()
+    let edges: Vec<(OrderedFloat<f64>, Net, i32, i32)> = edges
+        .into_iter()
         .map(|(weight, net, point_pair)| {
             let start_index = point_to_index[&point_pair.start()];
             let end_index = point_to_index[&point_pair.end()];
@@ -67,13 +73,17 @@ pub fn prim_mst(edges: Vec<(OrderedFloat<f64>, Net, PointPair)>) -> Vec<(Ordered
     // let mst_edges = mst_edges.into_iter()
     //     .map(|((start, end), (weight, net))| (weight, net, start, end))
     //     .collect::<Vec<_>>();
-    let mst_edges: Vec<(OrderedFloat<f64>, Net, PointPair)> = mst_edges.into_iter()
+    let mst_edges: Vec<(OrderedFloat<f64>, Net, PointPair)> = mst_edges
+        .into_iter()
         .map(|(weight, net, start, end)| {
             let start_point = index_to_point[start as usize].clone();
             let end_point = index_to_point[end as usize].clone();
             (weight, net, PointPair::new(start_point, end_point))
         })
         .collect();
-    assert!(mst_edges.len() >= 1, "Minimum spanning tree must have at least one edge.");
+    assert!(
+        mst_edges.len() >= 1,
+        "Minimum spanning tree must have at least one edge."
+    );
     mst_edges
 }

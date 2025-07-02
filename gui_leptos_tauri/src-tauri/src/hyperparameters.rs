@@ -2,9 +2,6 @@ use std::{collections::HashMap, num::NonZeroUsize, sync::Mutex};
 
 use lazy_static::lazy_static;
 
-
-
-
 pub const LENGTH_PENALTY_RATE: f64 = 1.0;
 pub const TURN_PENALTY_RATE: f64 = 3.0;
 pub const HALF_PROBABILITY_RAW_SCORE: f64 = 10.0;
@@ -12,8 +9,7 @@ pub const HALF_PROBABILITY_RAW_SCORE: f64 = 10.0;
 pub const MAX_TRACES_PER_ITERATION: usize = 4; // Maximum number of traces per iteration
 pub const MAX_GENERATION_ATTEMPTS: usize = 10; // Maximum number of attempts to generate a trace
 
-
-lazy_static!{
+lazy_static! {
     pub static ref SCORE_WEIGHT: Mutex<f64> = Mutex::new(0.3);
     pub static ref OPPORTUNITY_COST_WEIGHT: Mutex<f64> = Mutex::new(0.3);
     pub static ref ITERATION_TO_PRIOR_PROBABILITY: HashMap<NonZeroUsize, f64> = {

@@ -1,9 +1,15 @@
-use std::{cmp::Ordering, collections::{BTreeSet, BinaryHeap, HashMap, HashSet}};
+use std::{
+    cmp::Ordering,
+    collections::{BTreeSet, BinaryHeap, HashMap, HashSet},
+};
 
-use crate::{grid::Point, proba_grid::{Direction, TracePath}};
+use crate::{
+    grid::Point,
+    proba_grid::{Direction, TracePath},
+};
 
 #[derive(Debug, Clone)]
-pub struct DijkstraModel{
+pub struct DijkstraModel {
     pub width: usize,
     pub height: usize,
     pub obstacles: HashSet<Point>,
@@ -38,7 +44,10 @@ impl DijkstraModel {
             }
         }
 
-        heap.push(State { cost: 0.0, position: self.start });
+        heap.push(State {
+            cost: 0.0,
+            position: self.start,
+        });
         dist.insert(self.start, 0.0);
 
         let cardinal_dirs: [(i32, i32); 4] = [(0, -1), (0, 1), (-1, 0), (1, 0)];
@@ -64,7 +73,10 @@ impl DijkstraModel {
                     if next_cost < *dist.get(&next).unwrap_or(&f64::INFINITY) {
                         dist.insert(next, next_cost);
                         prev.insert(next, position);
-                        heap.push(State { cost: next_cost, position: next });
+                        heap.push(State {
+                            cost: next_cost,
+                            position: next,
+                        });
                     }
                 }
             }
@@ -73,14 +85,18 @@ impl DijkstraModel {
                 if let Some(next) = self.offset_point(position, dx, dy) {
                     // top-left corner of the diagonal
                     let top_left = self.offset_point(position, dx.min(0), dy.min(0)).unwrap();
-                    if self.obstacles.contains(&next) || self.diagonal_obstacles.contains(&top_left) {
+                    if self.obstacles.contains(&next) || self.diagonal_obstacles.contains(&top_left)
+                    {
                         continue;
                     }
                     let next_cost = cost + (2.0f64).sqrt();
                     if next_cost < *dist.get(&next).unwrap_or(&f64::INFINITY) {
                         dist.insert(next, next_cost);
                         prev.insert(next, position);
-                        heap.push(State { cost: next_cost, position: next });
+                        heap.push(State {
+                            cost: next_cost,
+                            position: next,
+                        });
                     }
                 }
             }
@@ -116,17 +132,20 @@ impl DijkstraModel {
         }
         trace_directions.reverse();
         let mut current = self.start;
-        let trace_path: BTreeSet<Point> = trace_directions.iter().fold(BTreeSet::new(), |mut acc, dir| {
-            current = Point {
-                x: (current.x as i32 + dir.x) as usize,
-                y: (current.y as i32 + dir.y) as usize,
-            };
-            acc.insert(current);
-            acc
-        });
-        let trace_path = TracePath { 
-            covered, 
-            diagonal_covered
+        let trace_path: BTreeSet<Point> =
+            trace_directions
+                .iter()
+                .fold(BTreeSet::new(), |mut acc, dir| {
+                    current = Point {
+                        x: (current.x as i32 + dir.x) as usize,
+                        y: (current.y as i32 + dir.y) as usize,
+                    };
+                    acc.insert(current);
+                    acc
+                });
+        let trace_path = TracePath {
+            covered,
+            diagonal_covered,
         };
         Ok(DijkstraResult {
             start: self.start,
@@ -141,16 +160,19 @@ impl DijkstraModel {
         let nx = point.x as i32 + dx;
         let ny = point.y as i32 + dy;
         if nx >= 0 && ny >= 0 && (nx as usize) < self.width && (ny as usize) < self.height {
-            Some(Point { x: nx as usize, y: ny as usize })
+            Some(Point {
+                x: nx as usize,
+                y: ny as usize,
+            })
         } else {
             None
         }
     }
 }
 
-pub struct DijkstraResult{
+pub struct DijkstraResult {
     pub start: Point,
-    pub end: Point, 
+    pub end: Point,
     pub trace_path: TracePath,
     pub trace_directions: Vec<Direction>,
     pub distance: f64,
