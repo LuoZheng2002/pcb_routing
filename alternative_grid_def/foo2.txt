@@ -1,3 +1,6 @@
-pad1: pad, (0, 0), 1.5
-rp1: rect_pad, (10, 0), 6, 3, 45
-wire1: wire, pad1, rp1, 0.25, (0, 0), (5, 5), (10, 0)
+pad1: pad, (0, 10), 1.0
+pad2: square_pad, (10, 15), 1.0, 0
+pad3: square_pad, (5, 20), 1.5, 0
+pad4: pad, (5, 0), 1.5
+wire1: wire, pad1, pad2, 0.7, (0, 10), (0, 4.5), (10, -10), (10, 15)
+wire2: wire, pad3, pad4, 0.7, (5, 20), (5, 0)

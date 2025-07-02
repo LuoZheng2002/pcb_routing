@@ -1,2 +1,8 @@
-pad1: pad, (10, 10), 2
-rect_pad1: rect_pad, (-10, -10), 5, 45
+pad1: pad, (0, 0), 1.0
+pad2: pad, (10, 0), 1.0
+pad3: pad, (0, 10), 4.0
+pad4: pad, (10, 10), 1.0
+wire1: wire, pad1, pad4, 0.3, (0, 0), (4, 0), (10, 10)
+wire2: wire, pad3, pad2, 0.3, (0, 10), (15, 15), (10, 0)
+rectpad1: rect_pad, (20, 20), 3, 1.5, 70
+squarepad1: square_pad, (0, 20), 2, 15
