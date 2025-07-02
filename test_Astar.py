@@ -1,6 +1,60 @@
-from Astar import a_star_implicit_grid, line_rect_intersection
+from Astar import a_star_implicit_grid
 from grid import Grid, Net, Point, PointPair
 
+def line_rect_intersection(line_start, line_end, rect_min, rect_max):
+    """Check if line segment intersects with rectangle."""
+    # Liang-Barsky line clipping algorithm
+    def clip(t0, t1, p, q):
+        if p == 0:
+            if q < 0:
+                return False
+        else:
+            r = q / p
+            if p < 0:
+                if r > t1:
+                    return False
+                elif r > t0:
+                    t0 = r
+            else:
+                if r < t0:
+                    return False
+                elif r < t1:
+                    t1 = r
+        return True, t0, t1
+
+    x0, y0 = line_start
+    x1, y1 = line_end
+    xmin, ymin = rect_min
+    xmax, ymax = rect_max
+    
+    t0, t1 = 0.0, 1.0
+    dx = x1 - x0
+    dy = y1 - y0
+    
+    # Left edge
+    res = clip(t0, t1, -dx, x0 - xmin)
+    if not res:
+        return False
+    t0, t1 = res[1], res[2]
+    
+    # Right edge
+    res = clip(t0, t1, dx, xmax - x0)
+    if not res:
+        return False
+    t0, t1 = res[1], res[2]
+    
+    # Bottom edge
+    res = clip(t0, t1, -dy, y0 - ymin)
+    if not res:
+        return False
+    t0, t1 = res[1], res[2]
+    
+    # Top edge
+    res = clip(t0, t1, dy, ymax - y0)
+    if not res:
+        return False
+    
+    return True
 
 def create_pcb_collision_checker(obstacles):
     """Create a collision checker function for PCB obstacles."""
@@ -29,7 +83,7 @@ obstacles = [
 collision_check_fn = create_pcb_collision_checker(obstacles)
 
 # Define parameters
-start_point = Point(0.0, 0.0)
+start_point = Point(0.5, 0.0)
 goal_point = Point(5.0, 5.0)
 stride_size = 1.0
 trace_width = 0.2
